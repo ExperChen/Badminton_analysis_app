@@ -1,0 +1,27 @@
+.playback-preview {
+  padding-bottom: 20px;
+}
+
+.playback-preview > p {
+  padding: 16px 20px 0;
+  color:var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.playback-preview > button {
+  margin: 14px 10px 0 20px;
+}
+
+.playback-preview > [role="status"] {
+  display: inline-block;
+  color:#368568;
+  font-size: 12px;
+}
+
+@media (max-width: 600px) {
+  .playback-preview > [role="status"] {
+    display: block;
+    margin: 8px 20px 0;
+  }
+}

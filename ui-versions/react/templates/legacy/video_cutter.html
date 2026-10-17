@@ -1,0 +1,21 @@
+<main id="main">
+    <div class="page-heading"><div><p class="eyebrow">视频工具</p><h1>回合视频剪辑</h1><p class="description">只保留有效回合，移除捡球、等待和场间间隔。</p></div><a class="button" id="open-analysis" href="/insights/match-breakdown">比赛分析 ↗</a></div>
+    <div id="error" class="error" role="alert" hidden></div>
+    <section class="panel cutter-controls">
+      <div class="panel-heading"><h3>剪辑设置</h3><span>原视频保留 · 导出新 视频</span></div>
+      <div class="cutter-form">
+        <div class="wide"><label for="match">比赛</label><select id="match"><option>正在读取…</option></select></div>
+        <div><label for="game">局数</label><select id="game"><option value="">全部局数</option></select></div>
+        <div><label for="clip-before">回合前保留</label><div class="unit-input"><input id="clip-before" type="number" min="0" max="5" step="0.1" value="0"><span>秒</span></div></div>
+        <div><label for="clip-after">回合后保留</label><div class="unit-input"><input id="clip-after" type="number" min="0" max="5" step="0.1" value="0"><span>秒</span></div></div>
+      </div>
+      <div class="cutter-actions"><label class="button" for="video-file">更换原视频</label><input id="video-file" type="file" accept=".mp4,.mov,.mkv,.webm,.avi,.m4v" hidden><button id="generate-clip" class="primary" disabled>✂ 生成精剪 视频</button></div>
+      <progress id="upload-progress" max="100" value="0" hidden></progress><p id="upload-status" class="section-note" role="status"></p>
+    </section>
+    <section class="cutter-grid">
+      <div class="panel preview-panel"><div class="panel-heading"><h3>原片预览</h3><span id="video-meta">未选择视频</span></div><div class="cutter-video"><video id="video" controls playsinline></video><div id="video-empty"><strong>没有可用原视频</strong><p>选择视频后将保存到当前比赛 视频记录。</p></div></div></div>
+      <div class="panel plan-panel"><div class="panel-heading"><h3>剪辑方案</h3><span id="tool-status">检查剪辑服务…</span></div><div id="plan-metrics" class="plan-metrics"><div><span>回合数</span><strong>—</strong></div><div><span>片段数</span><strong>—</strong></div><div><span>保留时长</span><strong>—</strong></div><div><span>移除时长</span><strong>—</strong></div></div><p id="clip-plan" class="section-note" role="status">选择比赛后将计算剪辑方案。</p><p class="section-note">比分在回合结束前 1.25 秒显示；相邻回合会自动合并为连续片段。</p></div>
+    </section>
+    <section class="panel"><div class="panel-heading"><h3>剪辑记录</h3><span>最近五次</span></div><div id="clip-jobs" class="clip-jobs" aria-live="polite"><p class="section-note">正在读取…</p></div></section>
+    <footer><strong>羽序</strong><span>回合视频剪辑</span></footer>
+  </main>

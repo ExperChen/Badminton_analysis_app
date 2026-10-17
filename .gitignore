@@ -1,0 +1,56 @@
+# Local Python / JavaScript environments and generated caches
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Credentials, personal settings, connected mail and private state
+.env
+.env.*
+!.env.example
+.secrets/
+.aws/
+.claude/
+.codex/
+.agents/
+feedback-config.json
+extension/config.local.js
+.feedback-relay/
+feedback-work/
+
+# Runtime data (never commit real account, match, video or billing records)
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.csv
+*.mp4
+*.mov
+*.mkv
+*.webm
+*.avi
+*.m4v
+media/
+exports/
+backups/
+deployments/
+logs/
+.logs/
+*.log
+*.zip
+
+# Built frontend, reports and local publishing workspaces
+ui-versions/react/static/react-ui/
+test-results/
+playwright-report/
+.test-data/
+.test-build/
+.github-publish/
+.github-publish-docs/
+.feedback-ui-preview/
+.DS_Store
+Thumbs.db

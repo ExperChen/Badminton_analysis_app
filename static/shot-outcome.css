@@ -1,0 +1,3 @@
+/* Keep ordinary strokes and their timing; suppress only the continuation label. */
+.shot-result.in_play{display:none!important}
+.shot-table td.in_play{visibility:hidden}

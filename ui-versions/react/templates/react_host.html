@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#7c3aed"><meta name="description" content="羽序，让比赛的每一拍成为下一次进步。"><title>羽序 · 羽球训练空间</title><link rel="icon" href="/static/yu-mark.svg"><script src="/static/account-context.js"></script><script src="/static/ui-language.js?v=20261012-winner"></script>{% if view != 'login' %}<script src="/static/account-session.js"></script>{% endif %}
+<link rel="stylesheet" href="/static/shot-outcome.css?v=20261012-winner">
+{% for style in legacy_styles %}<link rel="stylesheet" href="{{ style }}">{% endfor %}
+{% for css in entry_css %}<link rel="stylesheet" href="{{ css }}">{% endfor %}
+<script type="module" src="{{ entry_js }}"></script></head><body>
+<div id="root" data-view="{{ view }}" data-scripts='{{ legacy_scripts|tojson }}'></div>
+{% if view not in ['login', 'library', 'analysis', 'feedback', 'help'] %}<template id="legacy-content">{% include legacy_template %}</template>{% endif %}
+<noscript>请启用 JavaScript，使用视频库、比赛复盘与训练项目。</noscript>
+</body></html>

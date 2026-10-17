@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <script src="/static/account-context.js"></script><script src="/static/ui-language.js?v=20261009-zh"></script>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>我的账号 · 羽球分析</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/accounts.css?v=20261009-zh">
+  <script src="/static/account-session.js"></script><script defer src="/static/accounts.js?v=20261009-security"></script>
+<script defer src="/static/tracker-confirm.js?v=20261009-zh"></script><script defer src="/static/tracker-cost.js?v=20261009-zh"></script><script defer src="/static/bridge.js?v=20261009-zh"></script></head>
+<body class="account-body">
+<div class="account-shell">
+  <aside class="account-rail" id="admin-rail" hidden aria-label="管理员导航">
+    <a class="brand" href="/insights/match-breakdown"><span class="brand-icon">羽</span><span><small>羽球分析</small><strong>管理工作台</strong></span></a>
+    <p class="rail-label">管理导航</p>
+    <nav class="admin-nav">
+      <a href="#overview" data-admin-view="overview" aria-current="page"><span class="nav-number">01</span>额度总览</a>
+      <a href="#users-panel" data-admin-view="users-panel"><span class="nav-number">02</span>子账号管理<span class="nav-count" id="nav-users">—</span></a>
+      <a href="#videos-panel" data-admin-view="videos-panel"><span class="nav-number">03</span>视频库<span class="nav-count" id="nav-videos">—</span></a>
+      <a href="#connection-panel" data-admin-view="connection-panel"><span class="nav-number">04</span>后台诊断</a>
+      <a href="#ownership-panel" data-admin-view="ownership-panel"><span class="nav-number">05</span>数据认领<span class="nav-count" id="nav-unassigned">—</span></a>
+      <a href="#audit-panel" data-admin-view="audit-panel"><span class="nav-number">06</span>操作记录</a>
+    </nav>
+    <div class="rail-footer"><span class="connection-dot" id="rail-connection-dot"></span><span id="rail-connection-state">正在检查后台连接</span><a href="/insights/match-breakdown">← 返回比赛分析</a></div>
+  </aside>
+  <main class="account-page">
+    <header class="account-header"><div><p class="eyebrow" id="account-eyebrow">账号与数据</p><h1 id="account-title">我的账号与数据</h1><p id="identity" class="identity">正在读取…</p></div>
+      <div class="header-actions"><a class="button" href="/insights/match-breakdown">比赛分析 ↗</a><details class="account-menu"><summary>账号选项 <span>⌄</span></summary><div><a href="/tracker">比赛项目</a><a href="/login?new=1" target="_blank" rel="noopener">登录其他账号 ↗</a><button id="logout">退出此账号</button></div></details></div>
+    </header>
+    <p id="message" role="status" class="account-message" hidden></p>
+    <p id="upload-capacity" class="hint" role="status"></p>
+    <section class="account-section" id="overview" data-admin-panel>
+      <div class="section-top"><div><p class="eyebrow">额度概览</p><h2 id="token-title">我的 分析额度</h2></div><button id="refresh-tokens" class="subtle-button">↻ 刷新额度</button></div>
+      <p id="token-summary" class="section-description">正在读取…</p><p id="token-note" class="hint"></p>
+      <div class="stat-grid personal-stats" id="personal-stats" hidden>
+        <article class="stat-card accent"><span>可用额度</span><strong id="personal-available">—</strong><small>分析额度</small></article>
+        <article class="stat-card"><span>预留额度</span><strong id="personal-reserved">—</strong><small>分析额度 · 处理中</small></article>
+        <article class="stat-card"><span>已结算消耗</span><strong id="personal-consumed">—</strong><small>分析额度 · 真实费用</small></article>
+      </div>
+      <div id="ggab-tokens" hidden>
+        <div class="stat-grid">
+          <article class="stat-card accent"><div class="stat-label"><span>分析服务 真实余额</span><span class="status-badge" id="ggab-balance-state">读取中</span></div><strong id="ggab-token-summary">—</strong><small>分析额度 · 共享 服务账号</small></article>
+          <article class="stat-card"><span>子账号已结算消耗</span><strong id="child-consumed">—</strong><small>分析额度 · 累计真实费用</small></article>
+          <article class="stat-card"><span>子账号预留额度</span><strong id="child-reserved">—</strong><small>分析额度 · 尚未扣款</small></article>
+          <article class="stat-card"><span>已启用子账号</span><strong id="active-users">—</strong><small id="child-token-summary">正在读取…</small></article>
+        </div>
+        <div class="sync-note"><span class="connection-dot" id="ggab-sync-dot"></span><p id="ggab-sync-note">等待后台扩展读取</p><a href="#connection-panel" data-admin-view="connection-panel">查看连接 →</a></div>
+        <div class="info-strip">预计费用仅预留，处理结果完成并核验真实费用后结算。分配本地额度不会改变 分析服务 余额。</div>
+        <div class="section-top ledger-heading"><div><h3>最近额度流水</h3><p class="hint">子账号的分配与实际扣费记录</p></div><a href="#users-panel" data-admin-view="users-panel" class="text-link">管理子账号 →</a></div><div id="admin-token-history" class="ledger-container"></div>
+      </div>
+      <details class="account-disclosure" id="personal-history"><summary>我的额度流水</summary><div id="token-history" class="ledger-container"></div></details>
+    </section>
+    <div id="admin" hidden>
+      <section class="account-section" id="users-panel" data-admin-panel hidden>
+        <div class="section-top"><div><p class="eyebrow">子账号与额度</p><h2>子账号管理</h2></div><span class="status-badge" id="user-count">正在读取…</span></div>
+        <p class="section-description">查看独立额度和真实消耗，为指定账号增加 分析额度。</p>
+        <form id="create-user" class="toolbar"><label for="new-user-email">新子账号邮箱</label><input id="new-user-email" type="email" required maxlength="254" autocomplete="off"><button id="create-user-submit" type="submit" class="primary">创建子账号</button></form>
+        <p class="hint">创建后会显示一次性激活码，请私下交给本人设置密码。激活码十五分钟内有效，过期后可重新签发密码重置码。</p>
+        <div class="account-search"><label for="user-search">搜索账号</label><input id="user-search" type="search" placeholder="输入邮箱查找账号"></div><div id="users" class="user-list"></div><p id="users-empty" class="empty-state" hidden>没有符合搜索条件的账号。</p>
+      </section>
+      <section class="account-section" id="videos-panel" data-admin-panel hidden>
+        <div class="section-top"><div><p class="eyebrow">视频库</p><h2>视频库</h2></div><button id="refresh-uploads" class="subtle-button">↻ 刷新视频</button></div>
+        <p class="section-description">按上传账号浏览原片与关联项目。</p>
+        <div class="upload-stats" aria-label="视频统计"><div><strong id="upload-total">—</strong><span>视频总数</span></div><div><strong id="upload-users">—</strong><span>有上传的账号</span></div><div><strong id="upload-pending">—</strong><span>待认领视频</span></div></div>
+        <div class="upload-filters"><div><label for="upload-account">选择账号</label><select id="upload-account"><option value="">全部账号</option></select></div><div><label for="upload-search">搜索视频或项目</label><input id="upload-search" type="search" placeholder="视频名称、项目名称或 ID"></div></div>
+        <p id="upload-results" class="upload-meta" role="status">正在读取视频列表…</p><div id="upload-groups"></div>
+      </section>
+      <section class="account-section" id="connection-panel" data-admin-panel hidden>
+        <div class="section-top"><div><p class="eyebrow">后台连接</p><h2>后台诊断</h2></div><span id="connection-status" class="status-badge">正在检查</span></div>
+        <p class="section-description">连接同一浏览器中的真实 服务账号，自动同步余额与处理结果。</p>
+        <div class="connection-card"><div><span class="hint">共享账号身份</span><strong id="source-state">正在核验…</strong></div><div><span class="hint">扩展版本</span><strong id="extension-version">—</strong></div><div><span class="hint">最近连接</span><strong id="extension-last-seen">—</strong></div></div>
+        <ol class="connection-steps"><li><span>1</span><div><strong>登录真实 分析服务</strong><p>在同一浏览器登录你的 服务账号。</p></div></li><li><span>2</span><div><strong>检查后台扩展</strong><p>重新加载 羽球分析 连接扩展，确认版本为 1.5.1。</p></div></li><li><span>3</span><div><strong>连接本地服务</strong><p>首次连接后即可同步；已有连接不需要重复配对。</p></div></li></ol>
+        <div class="toolbar"><button id="pair" class="primary">连接后台扩展</button></div>
+        <div id="admin-diagnostics"></div><details class="account-disclosure"><summary>后台日志</summary><button id="refresh-logs" type="button">刷新日志</button><pre id="backend-logs">展开后点击刷新日志。</pre></details><details class="account-disclosure"><summary>管理员账号选项</summary><div id="admin-account-actions"></div></details>
+      </section>
+      <section class="account-section" id="ownership-panel" data-admin-panel hidden>
+        <div class="section-top"><div><p class="eyebrow">数据归属</p><h2>数据认领</h2></div><button id="refresh" class="subtle-button">↻ 刷新列表</button></div>
+        <p class="section-description">核对历史数据后分配给所有者。认领项目会同时检查原视频、截图和已核验的远端比赛。</p>
+        <div class="reason-field"><label for="reason">认领依据（必填）</label><input id="reason" maxlength="500" placeholder="例如：核对上传记录和远端比赛 ID"></div><div id="unassigned" class="resource-list"></div>
+      </section>
+      <section class="account-section" id="audit-panel" data-admin-panel hidden>
+        <div class="section-top"><div><p class="eyebrow">操作记录</p><h2>操作记录</h2></div></div><p class="section-description">查看账号与数据归属操作记录。</p><div id="audit" class="audit-list"></div>
+      </section>
+    </div>
+  </main>
+</div>
+</body></html>

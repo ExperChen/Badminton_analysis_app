@@ -1,0 +1,8 @@
+{
+  "admin_email": "review-admin@example.com",
+  "execution_enabled": false,
+  "mail_transport": "connector",
+  "connector_email": "review-admin@example.com",
+  "connector_verified": false,
+  "notification_interval_seconds": 60
+}

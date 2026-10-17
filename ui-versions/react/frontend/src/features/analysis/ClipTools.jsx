@@ -1,0 +1,21 @@
+import React,{useEffect,useState} from 'react';
+import {ChevronDown,Download,LoaderCircle,Scissors} from 'lucide-react';
+import {api,duration,errorText,path} from '../../lib/api';
+
+export default function ClipTools({data,game}) {
+  const [open,setOpen]=useState(false),[before,setBefore]=useState(0),[after,setAfter]=useState(0),[plan,setPlan]=useState(null),[jobs,setJobs]=useState([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[revision,setRevision]=useState(0);
+  useEffect(()=>{
+    if(!open||!data.video)return;
+    const controller=new AbortController();let disposed=false;
+    setPlan(null);setError('');
+    const timer=setTimeout(async()=>{try{const params=new URLSearchParams({before:String(before),after:String(after)});if(game)params.set('game',game);const result=await api(`/api/matches/${encodeURIComponent(data.match_id)}/clip-plan?${params}`,{signal:controller.signal});if(!disposed)setPlan(result);}catch(e){if(!disposed&&e.name!=='AbortError')setError(errorText(e.message));}},200);
+    return()=>{disposed=true;controller.abort();clearTimeout(timer);};
+  },[open,data.match_id,data.video,before,after,game]);
+  useEffect(()=>{
+    if(!open||!data.video)return;let disposed=false,timer;const controller=new AbortController();
+    async function refresh(){try{const results=await api(`/api/matches/${encodeURIComponent(data.match_id)}/clips`,{signal:controller.signal});if(disposed)return;setJobs(results);if(results.some(j=>['queued','running'].includes(j.status)))timer=setTimeout(refresh,2000);}catch(e){if(!disposed&&e.name!=='AbortError')setError(errorText(e.message));}}
+    refresh();return()=>{disposed=true;controller.abort();clearTimeout(timer);};
+  },[open,data.match_id,data.video,revision]);
+  async function generate(){setBusy(true);setError('');try{const result=await api(`/api/matches/${encodeURIComponent(data.match_id)}/clips`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({before,after,game:game?Number(game):null})});setJobs(current=>[result,...current.filter(j=>j.id!==result.id)]);setRevision(n=>n+1);}catch(e){setError(errorText(e.message));}finally{setBusy(false);}}
+  return <section className="analysis-clip-tools" id="clip-panel"><button type="button" className="clip-disclosure" onClick={()=>setOpen(!open)} aria-expanded={open} aria-controls="react-clip-settings"><span><Scissors size={16}/>生成回合精剪</span><span>只保留有效回合，原片保留<ChevronDown size={15} className={open?'rotated':''}/></span></button>{open&&<div id="react-clip-settings" className="clip-settings">{data.video?<><div className="clip-controls"><label>回合前保留<input type="number" min="0" max="5" step="0.1" value={before} onChange={e=>setBefore(Math.min(5,Math.max(0,Number(e.target.value)||0)))}/><small>秒</small></label><label>回合后保留<input type="number" min="0" max="5" step="0.1" value={after} onChange={e=>setAfter(Math.min(5,Math.max(0,Number(e.target.value)||0)))}/><small>秒</small></label><button className="purple-button" onClick={generate} disabled={busy||!plan||!plan.rally_count}>{busy?<LoaderCircle size={14} className="animate-spin"/>:<Scissors size={14}/>}生成精剪视频</button></div><p id="clip-plan" role="status" className="analysis-note">{plan?`${game?`第 ${game} 局`:'全部局数'} · ${plan.rally_count} 个回合 → ${plan.segment_count} 段 · 保留 ${duration(plan.kept_duration)} · 移除 ${duration(plan.removed_duration)}`:'正在计算剪辑方案…'}</p><p className="analysis-note">比分在回合结束前 1.25 秒显示，相邻回合自动合并为连续片段。</p><div className="react-clip-jobs">{jobs.slice(0,5).map(job=><article key={job.id}><div><strong>{job.status==='complete'?'精剪完成':job.status==='failed'?'剪辑未完成':job.status==='queued'?'等待剪辑':`正在剪辑 ${job.progress}%`}</strong><small>{job.game?`第 ${job.game} 局`:'全部局数'} · {job.plan?.rally_count||0} 个回合 · {new Date(job.created_at).toLocaleString('zh-CN')}</small>{job.status==='failed'&&<p>{errorText(job.error)}</p>}{['queued','running'].includes(job.status)&&<progress max="100" value={job.progress||0}/>}</div>{job.status==='complete'&&<><a className="analysis-small-button" href={path(job.download_url)}><Download size={13}/>下载视频</a><a className="analysis-text-button" href={path(job.timeline_url)}>时间轴</a></>}</article>)}</div></>:<p className="analysis-note">关联原视频后，就可以按已标注的回合生成精剪。</p>}{error&&<p role="alert" className="analysis-alert">{error}</p>}</div>}</section>;
+}
