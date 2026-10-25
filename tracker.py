@@ -268,7 +268,7 @@ def projects():
     from app import DB_PATH
     import local_data
     matches = local_data.project_matches(DB_PATH)
-    linked = {pid: mid for mid, pid in matches.items()}
+    linked = {pid: mid for mid, pid in matches.items() if accounts.visible("match", mid)}
     with database() as conn:
         rows = conn.execute("SELECT id,payload FROM projects ORDER BY updated_at DESC").fetchall()
     return [{**json.loads(row["payload"]), "analysis_match_id": linked.get(row["id"])}

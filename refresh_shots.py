@@ -1,4 +1,4 @@
-"""用一个 GGAB CSV 全量替换 SQLite 的 shots 表。
+"""显式导入本地逐拍 CSV，全量替换 SQLite 的 shots 表。
 
 默认用法：
     python refresh_shots.py

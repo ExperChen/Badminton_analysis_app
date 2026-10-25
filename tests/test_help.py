@@ -7,7 +7,7 @@ def test_user_guide_requires_login_and_keeps_api_docs_admin_only(environment):
     for client in (admin, alice, bob):
         result = client.get("/help")
         assert result.status_code == 200
-        assert "使用文档" in result.text and "预计费用不是已扣款" in result.text
+        assert "使用文档" in result.text and "不会自动生成分析" in result.text
         assert "恢复" not in result.text and "SHA-256" not in result.text
         assert result.headers["cache-control"] == "no-store"
         assert "frame-ancestors 'none'" in result.headers["content-security-policy"]

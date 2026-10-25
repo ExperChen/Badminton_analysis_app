@@ -172,6 +172,8 @@ pwsh -File .\start.ps1
 
 The connection tool uses a loopback OAuth/PKCE flow and requests `drive.file` access. It creates a private application folder and saves authorization locally under `.secrets/` unless overridden. Reauthorization uses `--reconnect` and preserves the original account/folder. Do not commit OAuth files or refresh tokens.
 
+Existing Drive files retain their historical `ggab_*` private metadata keys so ownership checks and interrupted uploads can reuse the original files. These compatibility fields do not enable a connection to an external analysis service. Existing local databases keep the `ggab.db` filename and stored match/video associations.
+
 Drive mode does not silently fall back to local uploads when unavailable. Playback uses authenticated byte-range access; validation, screenshots, previews, and cutting may still require a complete local cache. Budget disk space for both originals/caches and derived media. Removing a local association does not prove a remote file was deleted.
 
 ### Feedback and email review

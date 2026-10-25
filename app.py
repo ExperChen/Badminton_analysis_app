@@ -113,7 +113,6 @@ async def local_mutations(request, call_next):
     if request.method in {"GET", "HEAD"} and (
         route_path == "/api/my/export.csv"
         or re.fullmatch(r"/api/matches/[^/]+/export", route_path)
-        or re.fullmatch(r"/api/bridge/projects/[^/]+/shots\.csv", route_path)
     ):
         return JSONResponse({"detail": "数据文件导出已关闭"}, status_code=403,
                             headers={"Cache-Control": "no-store"})

@@ -44,3 +44,31 @@ def test_local_bindings_and_revision_remain_read_only(environment):
     assert bob.get("/api/matches/A/video").status_code==404
     with sqlite3.connect(database) as conn:
         assert conn.execute("SELECT COUNT(*) FROM shots").fetchone()[0]==before
+
+
+def test_project_list_hides_link_to_another_accounts_match(environment):
+    with sqlite3.connect(environment["db"]) as conn:
+        conn.execute("CREATE TABLE match_video_links(match_id TEXT PRIMARY KEY,session_id TEXT,project_id TEXT)")
+        conn.execute("INSERT INTO match_video_links VALUES ('B','video-A','project-A')")
+    admin, alice, bob, _ = environment["clients"]
+    personal = alice.get("/api/tracker/projects").json()
+    project = next(item for item in personal if item["id"] == "project-A")
+    assert project["analysis_match_id"] is None
+    assert all(item["match_id"] != "B" for item in alice.get("/api/matches").json())
+    assert all(item["id"] != "project-A" for item in bob.get("/api/tracker/projects").json())
+    assert next(item for item in admin.get("/api/tracker/projects").json()
+                if item["id"] == "project-A")["analysis_match_id"] == "B"
+
+
+def test_project_list_hides_link_to_another_accounts_match(environment):
+    with sqlite3.connect(environment["db"]) as conn:
+        conn.execute("CREATE TABLE match_video_links(match_id TEXT PRIMARY KEY,session_id TEXT,project_id TEXT)")
+        conn.execute("INSERT INTO match_video_links VALUES ('B','video-A','project-A')")
+    admin, alice, bob, _ = environment["clients"]
+    personal = alice.get("/api/tracker/projects").json()
+    project = next(item for item in personal if item["id"] == "project-A")
+    assert project["analysis_match_id"] is None
+    assert all(item["match_id"] != "B" for item in alice.get("/api/matches").json())
+    assert all(item["id"] != "project-A" for item in bob.get("/api/tracker/projects").json())
+    assert next(item for item in admin.get("/api/tracker/projects").json()
+                if item["id"] == "project-A")["analysis_match_id"] == "B"

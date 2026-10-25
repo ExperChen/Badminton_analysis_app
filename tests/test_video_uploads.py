@@ -133,7 +133,7 @@ def fake_drive(monkeypatch, small_chunks):
         if offset == data["size_bytes"]:
             meta = {"id": "drive-" + data["upload_id"], "size": str(offset),
                     "md5Checksum": hashlib.md5(stored["content"]).hexdigest(), "mimeType": "video/mp4",
-                    "appProperties": {"yuxu_upload_id": data["upload_id"], "yuxu_owner": data["owner_id"]},
+                    "appProperties": {"ggab_upload_id": data["upload_id"], "ggab_owner": data["owner_id"]},
                     "capabilities": {"canDownload": True}}
             stored["meta"] = meta
         return offset, meta

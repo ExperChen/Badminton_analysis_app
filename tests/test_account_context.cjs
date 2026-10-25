@@ -21,7 +21,7 @@ function tab(digit, email = 'alice@example.test') {
   const context = vm.createContext({window,URL,Headers,Request,Response,XMLHttpRequest:XHR,
     location:{href:'http://127.0.0.1:8000'+base+'/account',pathname:base+'/account',origin:'http://127.0.0.1:8000',replace:url=>{calls.push({redirect:url});}},
     history:{pushState:(...args)=>historyCalls.push(args),replaceState:(...args)=>historyCalls.push(args)},
-    document:{title:'GGAB Local',readyState:'complete',getElementById:()=>null,querySelectorAll:()=>[]},
+    document:{title:'Yuxu Local',readyState:'complete',getElementById:()=>null,querySelectorAll:()=>[]},
     setInterval:callback=>intervals.push(callback)});
   vm.runInContext(read('account-context.js'),context);
   return {context,window,base,calls,historyCalls,intervals,XHR,identity};
