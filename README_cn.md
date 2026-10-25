@@ -2,6 +2,10 @@
 
 简体中文 · [English](README.md)
 
+更新于 2026-10-25：本地项目、已有数据复盘及 `YUXU_` 配置。旧版后台扩展、远端同步和 Token 计费模块已移除。
+
+开发维护指南：[技术栈、项目结构与开发操作指南](技术栈方案.md)。本机启动参数、实际源码位置和发布步骤请优先参照该指南与当前脚本。
+
 由 **ExperChen** 开发的本地羽毛球复盘工作台。用于管理比赛视频、准备球员标注、查看逐拍与回合统计，并导出只保留回合的精剪视频。FastAPI 后端提供接口与数据访问，React 界面展示工作台，本地磁盘保存账号、资源归属、视频关联和分析元数据。
 
 仓库提供应用源码与测试，不包含真实比赛数据库、个人视频、逐拍导出、已有账号、个人邮箱、OAuth 凭据或已绑定的云服务账号。首次安装从空数据开始。
@@ -15,10 +19,9 @@
 | 视频工作台 | 8 MiB 分片上传、校验与断点续传、持久化视频 Session、HTTP Range 播放、本地原片关联和可选播放预览 |
 | 视频剪辑 | 按回合时间合并片段、设置额外保留时间、导出含动态比分的 H.264/AAC MP4、下载新旧时间轴映射 |
 | 账号管理 | 首次管理员初始化、普通账号、同一浏览器多登录上下文、资源归属、激活与重置码、上传限额 |
-| 额度流水 | 管理员分配、本地账号预留额度、根据已核验上游交易记录结算 |
-| 可选集成 | 管理员 Google Drive 存储、连接 GGAB 的 Chromium 后台扩展、反馈通知与审核队列 |
+| 可选集成 | 管理员 Google Drive 存储、反馈通知与审核队列 |
 
-统计分析需要兼容的逐拍标注。单纯上传视频不会运行仓库内的识别模型；仓库没有内置识别模型。自动跟踪通过可选的外部 GGAB 账号完成，可能产生上游服务费用。
+统计分析需要兼容的逐拍标注。单纯上传视频不会运行仓库内的识别模型；仓库没有内置识别模型。当前版本使用本地项目与已有逐拍数据，不再连接外部比赛分析服务，也不会自动扣费。
 
 ## 技术栈
 
@@ -56,7 +59,7 @@ pwsh -File .\start.ps1
 
 打开 [http://127.0.0.1:8102/login](http://127.0.0.1:8102/login)。保持终端运行，按 `Ctrl+C` 停止。
 
-启动脚本只在数据库不存在时创建空的 `ggab.db`，默认使用本地上传和项目内的 `media/` 目录。一个 Python 进程同时监听 **8102** 默认入口和 **8000** 后台扩展兼容入口，均绑定 `127.0.0.1`。两端口访问的是同一套应用与数据。
+启动脚本只在数据库不存在时创建空的 `ggab.db`，默认使用本地上传和项目内的 `media/` 目录。一个 Python 进程同时监听 **8102** 默认入口和 **8000** 可选兼容入口，均绑定 `127.0.0.1`。两端口访问的是同一套应用与数据。
 
 首次启动在本机登录页创建管理员，使用自己的邮箱格式登录名和 12–128 字符密码。仓库没有体验账号或默认密码。邮箱格式登录名目前不代表已验证邮箱，注册不会发送验证邮件。
 
@@ -74,7 +77,7 @@ pwsh -File .\start.ps1 -OriginalUI
 pwsh -File .\start.ps1 -Port 8104
 ```
 
-后台扩展继续连接 8000。独立测试实例应同时指定独立数据库与媒体目录，并通过 `-CompatPort 0` 关闭兼容监听；只换端口不会隔离数据。
+8000 保留为可选兼容端口。独立测试实例应同时指定独立数据库与媒体目录，并通过 `-CompatPort 0` 关闭兼容监听；只换端口不会隔离数据。
 
 ### Linux/macOS 手动启动
 
@@ -86,10 +89,10 @@ python3 -m venv .venv
 (cd ui-versions/react/frontend && npm ci)
 .venv/bin/python tools/build_release.py
 
-export GGAB_MEDIA_ROOT="$PWD/media"
-export GGAB_DB_PATH="$PWD/ggab.db"
-export GGAB_UPLOAD_STORAGE=local
-export GGAB_CPU_BUDGET=20
+export YUXU_MEDIA_ROOT="$PWD/media"
+export YUXU_DB_PATH="$PWD/ggab.db"
+export YUXU_UPLOAD_STORAGE=local
+export YUXU_CPU_BUDGET=20
 .venv/bin/python tools/init_db.py
 .venv/bin/python run_site.py --port 8102 --compat-port 8000
 ```
@@ -100,9 +103,9 @@ PowerShell 启动脚本是主要的使用路径。上述手动命令不会配置
 
 ### 1. 创建与管理本地账号
 
-通过本机回环地址创建首个管理员。管理员可在账号页管理普通账号、签发激活与重置码、分配资源、查看上传概览，以及增加本地账号额度。
+通过本机回环地址创建首个管理员。管理员可在账号页管理普通账号、签发激活与重置码、分配资源、查看上传概览。
 
-存在唯一启用的管理员后，默认允许符合条件的自助注册：本机回环访问，或配置了私有 HTTPS 网站源并强制 VPN 身份核验的访问。设置 `GGAB_SELF_REGISTRATION=0` 可关闭自助注册。新账号不会自动获得历史资源或额度。
+存在唯一启用的管理员后，默认允许符合条件的自助注册：本机回环访问，或配置了私有 HTTPS 网站源并强制 VPN 身份核验的访问。设置 `YUXU_SELF_REGISTRATION=0` 可关闭自助注册。新账号不会自动获得历史资源。
 
 使用“登录其他账号”（`/login?new=1`）在同一浏览器建立独立登录上下文，并在该上下文内导航。退出其中一个上下文不影响其他账号。应用的账号隔离不能阻止拥有操作系统文件权限或共享上游账号权限的人访问相应资源。
 
@@ -118,7 +121,7 @@ PowerShell 启动脚本是主要的使用路径。上述手动命令不会配置
 
 允许的文件扩展名为 `.mp4`、`.mov`、`.mkv`、`.webm`、`.avi`、`.m4v`，实际解码能力取决于 FFmpeg。上传提供校验、重试和续传状态，单文件上限为 50 GiB，另受账号额度限制。浏览器文件选择器不能提供可信绝对路径；本地原片关联针对配置媒体库中符合条件的文件，不开放任意服务器路径浏览。
 
-本地存储模式下，视频保存在应用所在机器，直到配置并使用外部流程。Drive 模式会把上传保存到远程；连接 GGAB 后台扩展后，相关流程可以把原视频、球员图片与项目设置发送到上游服务。
+本地存储模式下，视频保存在应用所在机器，直到配置并使用外部流程。Drive 模式会把上传保存到管理员配置的远程存储。
 
 ### 3. 提供逐拍标注
 
@@ -132,7 +135,7 @@ PowerShell 启动脚本是主要的使用路径。上述手动命令不会配置
 .\.venv\Scripts\python.exe refresh_shots.py path/to/shots.csv
 ```
 
-CSV 表头必须与 `schema.sql` 中的 `shots` 表一致，每行代表一拍。校验包括必要标识、唯一 `shot_id`、完整列、有效数值和非空数据。正式导入先备份当前数据库，再在单个事务中替换整个 `shots` 表。这是全量快照导入，不是追加导入。`--database path/to/other.db` 可指定目标库；如果服务设置了 `GGAB_DB_PATH`，导入命令也应显式传入同一路径。
+CSV 表头必须与 `schema.sql` 中的 `shots` 表一致，每行代表一拍。校验包括必要标识、唯一 `shot_id`、完整列、有效数值和非空数据。正式导入先备份当前数据库，再在单个事务中替换整个 `shots` 表。这是全量快照导入，不是追加导入。`--database path/to/other.db` 可指定目标库；如果服务设置了 `YUXU_DB_PATH`，导入命令也应显式传入同一路径。
 
 管理员需要核验并把历史/导入资源分配给本地账号。导入记录不会自动使普通账号获得归属权限，也不会生成或复制视频。
 
@@ -159,25 +162,13 @@ CSV 表头必须与 `schema.sql` 中的 `shots` 表一致，每行代表一拍�
 
 ## 可选集成
 
-### GGAB Chromium 后台扩展
-
-`extension/` 提供适用于 Chrome/Edge 的 Manifest V3 后台扩展，需要合法可用的上游账号和有效登录会话。本地视频准备、已有标注分析和剪辑不要求安装扩展。
-
-在 `extension/config.js` 中为 `globalThis.GGAB_PUBLIC_ANON_KEY` 填入有权使用的上游公开 anon/publishable key；仓库默认留空。此处不能填写 service-role key 或用户令牌。参考[扩展安装说明](extension/README.md)，在浏览器扩展管理页打开开发者模式，以“加载已解压的扩展”加载 `extension/`。保持本地服务、浏览器和上游登录可用。由本地管理员在账号页连接扩展；首次核验的上游用户身份会固定，切换上游身份时任务停止。
-
-扩展固定连接 `http://127.0.0.1:8000`，为符合条件的新项目准备上游设置、读取真实报价、同步状态，并在完成后导入经过校验的逐拍快照。每个收费提交都需要明确确认真实报价，报价改变需重新确认。远程写入结果不确定时暂停核查，避免重复创建项目或重复收费。
-
-本地额度是应用内部流水，不等于购买或转移上游 Tokens。符合条件的提交先预留额度，结算依赖已核验的最终上游交易证据；缺少证据时保持待结算。本地费用预估仅用于后台诊断，不能授权扣费。
-
-该集成依赖上游接口、权限、账号与服务行为；模拟网络测试不能证明真实账号联调可用。当前没有远程取消请求或逐拍编辑双向同步。
-
 ### Google Drive 存储
 
 公开仓库启动脚本默认使用本地存储。需要管理员 Drive 时，先启用 Drive API、创建桌面 OAuth 客户端，并把客户端 JSON 保存在版本控制之外，再运行：
 
 ```powershell
 .\.venv\Scripts\python.exe tools/connect_drive.py --client path/to/oauth-desktop-client.json
-$env:GGAB_UPLOAD_STORAGE = 'google_drive'
+$env:YUXU_UPLOAD_STORAGE = 'google_drive'
 pwsh -File .\start.ps1
 ```
 
@@ -203,22 +194,22 @@ Drive 不可用时不会悄悄退回本地上传。播放使用经认证的字�
 
 | 环境变量 | 说明 |
 | --- | --- |
-| `GGAB_MEDIA_ROOT` | 媒体、Session 及账号/项目/反馈元数据根目录；公开版本默认项目内 `media/` |
-| `GGAB_DB_PATH` | 逐拍 SQLite 数据库，默认项目内 `ggab.db` |
-| `GGAB_UPLOAD_STORAGE` | `local` 或 `google_drive`，公开版本默认 `local` |
-| `GGAB_CPU_BUDGET` | FFmpeg 最大 CPU 线程数，按实际可用资源收缩；Windows 默认 14，非 Windows 默认 20 |
-| `GGAB_FFMPEG`、`GGAB_FFPROBE` | 可选可执行文件完整路径；不设置时从 `PATH` 查找 |
-| `GGAB_SELF_REGISTRATION` | `1` 允许符合本机/私有网络条件的自助注册，`0` 关闭 |
-| `GGAB_ACCOUNT_UPLOAD_GIB` | 每账号原视频容量，默认 200 GiB |
-| `GGAB_DAILY_UPLOAD_GIB` | 最近 24 小时上传容量，默认 50 GiB |
-| `GGAB_DAILY_UPLOAD_FILES` | 最近 24 小时上传数量，默认 20 |
-| `GGAB_DRIVE_CREDENTIALS_PATH` | 私有 Drive 授权文件位置 |
-| `GGAB_PUBLIC_ORIGIN` | 私有可信反向代理使用的完整 HTTPS 网站源 |
-| `GGAB_REQUIRE_VPN_IDENTITY` | `1` 要求非回环访问携带 VPN 身份头 |
-| `GGAB_UI_RELEASE` | 可选 `deployments/` 内发布目录名，未设置时读取 `active.json` |
-| `GGAB_FEEDBACK_ROOT` | 可选反馈数据库目录 |
-| `GGAB_FEEDBACK_WORKER_DISABLED` | `1` 禁止启动内置邮件工作线程 |
-| `GGAB_FEEDBACK_NO_MAIL` | `1` 关闭直接邮件配置检查，适合隔离测试 |
+| `YUXU_MEDIA_ROOT` | 媒体、Session 及账号/项目/反馈元数据根目录；公开版本默认项目内 `media/` |
+| `YUXU_DB_PATH` | 逐拍 SQLite 数据库，默认项目内 `ggab.db` |
+| `YUXU_UPLOAD_STORAGE` | `local` 或 `google_drive`，公开版本默认 `local` |
+| `YUXU_CPU_BUDGET` | FFmpeg 最大 CPU 线程数，按实际可用资源收缩；Windows 默认 14，非 Windows 默认 20 |
+| `YUXU_FFMPEG`、`YUXU_FFPROBE` | 可选可执行文件完整路径；不设置时从 `PATH` 查找 |
+| `YUXU_SELF_REGISTRATION` | `1` 允许符合本机/私有网络条件的自助注册，`0` 关闭 |
+| `YUXU_ACCOUNT_UPLOAD_GIB` | 每账号原视频容量，默认 200 GiB |
+| `YUXU_DAILY_UPLOAD_GIB` | 最近 24 小时上传容量，默认 50 GiB |
+| `YUXU_DAILY_UPLOAD_FILES` | 最近 24 小时上传数量，默认 20 |
+| `YUXU_DRIVE_CREDENTIALS_PATH` | 私有 Drive 授权文件位置 |
+| `YUXU_PUBLIC_ORIGIN` | 私有可信反向代理使用的完整 HTTPS 网站源 |
+| `YUXU_REQUIRE_VPN_IDENTITY` | `1` 要求非回环访问携带 VPN 身份头 |
+| `YUXU_UI_RELEASE` | 可选 `deployments/` 内发布目录名，未设置时读取 `active.json` |
+| `YUXU_FEEDBACK_ROOT` | 可选反馈数据库目录 |
+| `YUXU_FEEDBACK_WORKER_DISABLED` | `1` 禁止启动内置邮件工作线程 |
+| `YUXU_FEEDBACK_NO_MAIL` | `1` 关闭直接邮件配置检查，适合隔离测试 |
 
 上传容量预留和限额是持久化记录。取消上传不一定退还当天限额，远程空间清理应单独核实。衍生文件不计入原视频额度，仍需监测磁盘剩余空间。
 
@@ -230,9 +221,9 @@ Drive 不可用时不会悄悄退回本地上传。播放使用经认证的字�
 
 ```text
 app.py / production_app.py       接口后端与构建后的 React 发布目录托管
-accounts.py / token_wallet.py   认证、归属、额度预留与结算流水
+accounts.py                     认证与资源归属
 analytics.py / schema.sql       统计计算及一行一拍的数据结构
-tracker.py / bridge.py          项目标注与上游扩展任务队列
+tracker.py / local_data.py       项目标注与已有数据关联
 video_tools.py                  视频 Session、FFmpeg 剪辑和媒体读取
 video_uploads.py                持久化分片上传状态
 playback_preview.py             可选播放预览转码
@@ -242,7 +233,6 @@ templates/ / static/            既有模板、控制器、图表和第三方本
 ui-versions/react/frontend/     React/Vite 源码和依赖锁定文件
 ui-versions/react/templates/    React 页面宿主与嵌入工作区模板
 ui-versions/react/page-config.json
-extension/                     Chromium 后台扩展与单元测试
 tools/init_db.py                创建空数据库，不修改已有库
 tools/build_release.py          构建并组装本地界面发布目录
 tools/connect_drive.py          可选管理员 Drive OAuth 连接
@@ -258,13 +248,12 @@ start.ps1 / run_site.py         PowerShell 启动器与回环 ASGI 服务
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 .\.venv\Scripts\python.exe -m pytest -q
-node --test extension/*.test.cjs tests/*.cjs
+node --test --test-concurrency=14 tests/*.cjs
 .\.venv\Scripts\python.exe tools/build_release.py
 ```
 
-测试使用临时媒体/测试数据库和模拟网络。FFmpeg 相关检查要求 `ffmpeg`、`ffprobe` 可用。单元测试不会提交真实分析任务，也不代表已验证真实 Drive/GGAB/Outlook 连接。个人浏览器预览测试夹具未随仓库发布。
+测试使用临时媒体/测试数据库和模拟网络。FFmpeg 相关检查要求 `ffmpeg`、`ffprobe` 可用。单元测试不会提交真实分析任务，也不代表已验证真实 Drive/Outlook 连接。个人浏览器预览测试夹具未随仓库发布。
 
-2026-10-17 发布检查通过 210 项 Python 测试、37 项浏览器控制器测试和 53 项扩展测试，前端依赖安装与发布构建也通过。另在隔离空环境的真实浏览器中验证了首次管理员初始化、视频库、空比赛接口、反馈提交与使用指南。上述结果不代表跨平台或真实第三方服务联调覆盖。
 
 修改前端后应重新构建和组装发布目录，再重启 Python 服务。如已在前端目录执行 `npm run build`，可运行 `tools/build_release.py --skip-build` 直接组装。发布工具只复制界面文件，不迁移或替换用户数据库。
 
@@ -277,10 +266,9 @@ node --test extension/*.test.cjs tests/*.cjs
 | 提示先构建 React 或找不到发布清单 | 前端目录执行 `npm ci`，再在项目根目录执行 `tools/build_release.py` |
 | 端口被占用 | 停止旧实例或选择空闲界面端口；启用兼容监听时 8000 也必须空闲 |
 | 分析页为空 | 全新克隆没有比赛；导入兼容逐拍并核验归属和视频关联 |
-| 数据库或表错误 | 核对 `GGAB_DB_PATH`；`init_db.py` 保留已有文件，不修复错误结构 |
+| 数据库或表错误 | 核对 `YUXU_DB_PATH`；`init_db.py` 保留已有文件，不修复错误结构 |
 | 提帧或剪辑失败 | 检查 `ffmpeg -version`、`ffprobe -version`、编解码支持、时间戳和剩余磁盘空间 |
 | 上传提示 Drive 不可用 | 显式使用本地模式，或先完成管理员 Drive 授权 |
-| 后台扩展不工作 | 检查扩展加载/配置、8000 端口、本地配对、固定的上游身份与上游登录 |
 | 反馈邮件未到达 | 全新克隆没有邮件连接器、授权或调度器；检查队列并配置运维集成 |
 | 返回 401/403 | 核对登录上下文、资源归属、CSRF/会话状态、来源和私有网络身份配置 |
 

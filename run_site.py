@@ -26,7 +26,7 @@ def main():
             sock.bind(("127.0.0.1",port))
             sock.listen(2048)
         config=uvicorn.Config(args.application,workers=1,
-            proxy_headers=bool(os.environ.get("GGAB_PUBLIC_ORIGIN")),
+            proxy_headers=bool(os.environ.get("YUXU_PUBLIC_ORIGIN")),
             forwarded_allow_ips="127.0.0.1,::1",limit_concurrency=64,timeout_keep_alive=5)
         print("网站入口："+", ".join(f"http://127.0.0.1:{port}" for port in ports),flush=True)
         uvicorn.Server(config).run(sockets=sockets)

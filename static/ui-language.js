@@ -54,9 +54,9 @@
     .replace(shotOrderPattern, (_,space,technique,placement)=>`${space}${placement} ${technique}`);
   const error = (value,diagnostic=false) => {
     const text=String(value??'操作未完成');
-    if(!(diagnostic&&window.GGABUser?.role==='admin')&&/Traceback|SHA-256|\.py\b|https?:\/\/|[A-Z]:\\|extension|cookie|access.token|ffmpeg/i.test(text))return '操作暂未完成，请稍后重试或联系管理员。';
+    if(!(diagnostic&&window.YuxuUser?.role==='admin')&&/Traceback|SHA-256|\.py\b|https?:\/\/|[A-Z]:\\|extension|cookie|access.token|ffmpeg/i.test(text))return '操作暂未完成，请稍后重试或联系管理员。';
     if(/Failed to fetch|NetworkError|Load failed|fetch failed|offline/i.test(text))return '网络连接暂时不可用，请稍后重试。';
-    return text.replace(/GGAB(?: Local(?: Companion)?)?/g,'分析服务').replace(/Tokens?|TOKENS/g,'分析额度').replace(/FFmpeg/g,'剪辑服务').replace(/Session|session/g,'视频记录');
+    return text.replace(/FFmpeg/g,'剪辑服务').replace(/Session|session/g,'视频记录');
   };
   window.AppText={term,sequence,error};
 })();

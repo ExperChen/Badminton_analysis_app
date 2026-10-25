@@ -7,11 +7,8 @@
   "tracker.html": {
     "view": "tracker",
     "scripts": [
-      "/static/tracker-confirm.js?v=20261009-zh",
-      "/static/tracker-cost.js?v=20261009-zh",
       "/static/video-upload.js?v=20261009-zh",
-      "/static/tracker.js?v=20261009-zh",
-      "/static/bridge.js?v=20261009-zh"
+      "/static/tracker.js?v=20261009-zh"
     ],
     "styles": [
       "/static/style.css",
@@ -32,24 +29,10 @@
       "/static/purple.css"
     ]
   },
-  "tokens.html": {
-    "view": "tokens",
-    "scripts": [
-      "/static/token-ui.js?v=20261009-zh"
-    ],
-    "styles": [
-      "/static/style.css",
-      "/static/token-ui.css?v=20261009-zh",
-      "/static/purple.css"
-    ]
-  },
   "accounts.html": {
     "view": "account",
     "scripts": [
-      "/static/accounts.js?v=20261009-security",
-      "/static/tracker-confirm.js?v=20261009-zh",
-      "/static/tracker-cost.js?v=20261009-zh",
-      "/static/bridge.js?v=20261009-zh"
+      "/static/accounts.js?v=20261025-local"
     ],
     "styles": [
       "/static/style.css",

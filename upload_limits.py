@@ -15,9 +15,9 @@ GIB = 1024 ** 3
 
 def policy():
     return {
-        "capacity_bytes": security_config.positive_int("GGAB_ACCOUNT_UPLOAD_GIB", 200) * GIB,
-        "daily_bytes": security_config.positive_int("GGAB_DAILY_UPLOAD_GIB", 50) * GIB,
-        "daily_files": security_config.positive_int("GGAB_DAILY_UPLOAD_FILES", 20),
+        "capacity_bytes": security_config.positive_int("YUXU_ACCOUNT_UPLOAD_GIB", 200) * GIB,
+        "daily_bytes": security_config.positive_int("YUXU_DAILY_UPLOAD_GIB", 50) * GIB,
+        "daily_files": security_config.positive_int("YUXU_DAILY_UPLOAD_FILES", 20),
     }
 
 

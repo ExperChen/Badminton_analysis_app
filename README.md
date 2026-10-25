@@ -2,6 +2,8 @@
 
 [简体中文](README_cn.md) · English
 
+Updated 2026-10-25: local project workflow, existing-data review, and `YUXU_` configuration. The previous companion, remote synchronization, and token billing modules have been removed.
+
 A local badminton review workspace by **ExperChen**. Organize match videos, prepare player annotations, inspect shot and rally statistics, and export rally-only video cuts. A FastAPI backend serves a React interface and keeps local accounts, ownership, video sessions, and analysis metadata on disk.
 
 This repository contains application source and tests. It does not include match databases, personal videos, exported shot data, user accounts, mailbox addresses, OAuth credentials, or a preconfigured cloud service account. A new installation starts empty.
@@ -15,10 +17,9 @@ This repository contains application source and tests. It does not include match
 | Video workspace | Resumable uploads in 8 MiB chunks, persistent video sessions, byte-range playback, local source association, and optional playback previews |
 | Video Cutter | Merge annotated rally intervals, add optional padding, export H.264/AAC MP4 with animated scores, and download the original/exported timeline mapping |
 | Accounts | First-run administrator setup, ordinary accounts, scoped login contexts in one browser, resource ownership, activation/reset codes, and upload limits |
-| Token ledger | Administrator allocations, per-account reservations, and settlement from verified upstream transaction evidence |
-| Optional integrations | Administrator-owned Google Drive storage, a Chromium companion extension for GGAB, and a feedback notification/review queue |
+| Optional integrations | Administrator-owned Google Drive storage and a feedback notification/review queue |
 
-Shot analysis requires compatible shot annotations. Uploading a video alone does not run a bundled recognition model. Automatic tracking is an optional integration with an external GGAB account and may incur that service's charges.
+Shot analysis requires compatible shot annotations. Uploading a video alone does not run a bundled recognition model. The current version uses local projects and existing annotations; it does not connect to an external match-analysis service or charge for tracking.
 
 ## Technology stack
 
@@ -74,7 +75,7 @@ To use another interface port:
 pwsh -File .\start.ps1 -Port 8104
 ```
 
-The extension still uses port 8000. For a separate test instance, select a separate database and media directory and disable the compatibility listener with `-CompatPort 0`. Changing the port alone does not isolate data.
+Port 8000 remains an optional compatibility listener. For a separate test instance, select a separate database and media directory and disable the compatibility listener with `-CompatPort 0`. Changing the port alone does not isolate data.
 
 ### Linux/macOS manual startup
 
@@ -86,10 +87,10 @@ python3 -m venv .venv
 (cd ui-versions/react/frontend && npm ci)
 .venv/bin/python tools/build_release.py
 
-export GGAB_MEDIA_ROOT="$PWD/media"
-export GGAB_DB_PATH="$PWD/ggab.db"
-export GGAB_UPLOAD_STORAGE=local
-export GGAB_CPU_BUDGET=20
+export YUXU_MEDIA_ROOT="$PWD/media"
+export YUXU_DB_PATH="$PWD/ggab.db"
+export YUXU_UPLOAD_STORAGE=local
+export YUXU_CPU_BUDGET=20
 .venv/bin/python tools/init_db.py
 .venv/bin/python run_site.py --port 8102 --compat-port 8000
 ```
@@ -100,9 +101,9 @@ Windows/PowerShell is the primary launcher path. These manual commands do not pr
 
 ### 1. Set up local users
 
-Create the initial administrator from loopback access. The account page provides ordinary-user management, activation/password reset codes, resource ownership, upload summaries, and local token allocations.
+Create the initial administrator from loopback access. The account page provides ordinary-user management, activation/password reset codes, resource ownership, upload summaries.
 
-Self-registration is enabled by default after a unique active administrator exists. It is permitted from loopback, or from an explicitly configured private HTTPS origin with VPN identity enforcement. Set `GGAB_SELF_REGISTRATION=0` to close it. New users receive no historical resources or token credit automatically.
+Self-registration is enabled by default after a unique active administrator exists. It is permitted from loopback, or from an explicitly configured private HTTPS origin with VPN identity enforcement. Set `YUXU_SELF_REGISTRATION=0` to close it. New users receive no historical resources automatically.
 
 Use “log in to another account” (`/login?new=1`) to create a separate login context in the same browser. Keep navigation inside that context. Signing out of one context does not sign out the others. Application isolation does not prevent a person with operating-system access to the files or the shared upstream account from accessing those resources.
 
@@ -118,7 +119,7 @@ Open Match Tracker and complete its five steps:
 
 Supported filename extensions are `.mp4`, `.mov`, `.mkv`, `.webm`, `.avi`, and `.m4v`; actual decoding depends on FFmpeg. Uploads have checksums, retry/resume state, a 50 GiB single-file limit, and account limits. Browser file selection cannot provide a trustworthy absolute path. Local file association is available for eligible files already in the configured media library; it does not make arbitrary server paths browsable.
 
-In local storage mode, video content stays on the application host until an external workflow is explicitly configured and used. Google Drive mode stores uploads remotely. Connecting the GGAB companion can send original videos, player images, and project settings to the upstream service.
+In local storage mode, video content stays on the application host until an external workflow is explicitly configured and used. Google Drive mode stores uploads remotely.
 
 ### 3. Supply shot annotations
 
@@ -132,7 +133,7 @@ Initialize a new shot database if needed, then validate a CSV before importing i
 .\.venv\Scripts\python.exe refresh_shots.py path/to/shots.csv
 ```
 
-CSV headers must match the `shots` table in `schema.sql`; each row represents one shot. The validator checks required IDs, unique `shot_id`, complete columns, numeric values, and nonempty content. A successful import backs up the current database, then replaces the entire `shots` table in one transaction. It is a full snapshot import, not an append operation. `--database path/to/other.db` selects a different target; when using `GGAB_DB_PATH`, pass the same path explicitly to this import tool.
+CSV headers must match the `shots` table in `schema.sql`; each row represents one shot. The validator checks required IDs, unique `shot_id`, complete columns, numeric values, and nonempty content. A successful import backs up the current database, then replaces the entire `shots` table in one transaction. It is a full snapshot import, not an append operation. `--database path/to/other.db` selects a different target; when using `YUXU_DB_PATH`, pass the same path explicitly to this import tool.
 
 The administrator must verify and assign historical/imported resources to local accounts. An imported row does not automatically grant an ordinary user ownership. Importing shot records also does not generate or copy a video.
 
@@ -159,31 +160,19 @@ Optional smooth-playback previews create a separate lower-resolution cache; they
 
 ## Optional integrations
 
-### Chromium companion for GGAB
-
-The `extension/` directory contains a Manifest V3 companion for Chrome/Edge. It requires a legitimate account and a current authenticated session at the upstream service. It is not required for local video preparation, imported-data analysis, or cutting.
-
-Set `globalThis.GGAB_PUBLIC_ANON_KEY` in `extension/config.js` to your authorized upstream public anon/publishable key. The repository leaves this value empty. Never enter a service-role key or user token there. Follow [the extension setup guide](extension/README.md), open the browser's extension management page, enable developer mode, and load `extension/` as an unpacked extension. Keep the local service, browser, and upstream login available. As the local administrator, use the account page to pair the companion. The first verified upstream user identity is pinned; switching upstream identities stops tasks.
-
-The extension connects to `http://127.0.0.1:8000`, prepares eligible new projects, reports real quotes, synchronizes states, and imports validated upstream shot snapshots after completion. A real quote must be explicitly confirmed for each charged submission. Changed quotes require another confirmation. Unknown remote write results stop for investigation to avoid duplicate projects or charges.
-
-Local token credit is an application ledger, not a purchase or transfer of upstream tokens. Reservations precede eligible submissions; settlement requires verified final upstream transaction evidence. Missing evidence stays pending. Local cost estimates are diagnostic and never authorize charging.
-
-This integration depends on upstream APIs, permissions, account availability, and service behavior. Mock tests cannot prove compatibility with a live upstream account. There is no remote cancel implementation or bidirectional shot-edit synchronization.
-
 ### Google Drive storage
 
 Local storage is the public launcher's default. To use administrator-owned Drive storage, enable Drive API, create a desktop OAuth client, and keep its JSON file outside version control. Then run:
 
 ```powershell
 .\.venv\Scripts\python.exe tools/connect_drive.py --client path/to/oauth-desktop-client.json
-$env:GGAB_UPLOAD_STORAGE = 'google_drive'
+$env:YUXU_UPLOAD_STORAGE = 'google_drive'
 pwsh -File .\start.ps1
 ```
 
 The connection tool uses a loopback OAuth/PKCE flow and requests `drive.file` access. It creates a private application folder and saves authorization locally under `.secrets/` unless overridden. Reauthorization uses `--reconnect` and preserves the original account/folder. Do not commit OAuth files or refresh tokens.
 
-Drive mode does not silently fall back to local uploads when unavailable. Playback uses authenticated byte-range access; validation, screenshots, previews, cutting, and upstream submission may still require a complete local cache. Budget disk space for both originals/caches and derived media. Removing a local association does not prove a remote file was deleted.
+Drive mode does not silently fall back to local uploads when unavailable. Playback uses authenticated byte-range access; validation, screenshots, previews, and cutting may still require a complete local cache. Budget disk space for both originals/caches and derived media. Removing a local association does not prove a remote file was deleted.
 
 ### Feedback and email review
 
@@ -203,22 +192,22 @@ Set environment variables before starting the process. The application does not 
 
 | Variable | Meaning |
 | --- | --- |
-| `GGAB_MEDIA_ROOT` | Media, sessions, and account/tracker/feedback metadata root; public default is project `media/` |
-| `GGAB_DB_PATH` | Shot SQLite database; defaults to project `ggab.db` |
-| `GGAB_UPLOAD_STORAGE` | `local` or `google_drive`; public default is `local` |
-| `GGAB_CPU_BUDGET` | Maximum FFmpeg CPU threads, clamped to detected availability; Windows default 14, non-Windows default 20 |
-| `GGAB_FFMPEG`, `GGAB_FFPROBE` | Optional full paths to executables, otherwise resolved from `PATH` |
-| `GGAB_SELF_REGISTRATION` | `1` permits registration under the supported local/private-network conditions; `0` disables it |
-| `GGAB_ACCOUNT_UPLOAD_GIB` | Per-account original-video capacity; default 200 GiB |
-| `GGAB_DAILY_UPLOAD_GIB` | Rolling 24-hour upload-byte allowance; default 50 GiB |
-| `GGAB_DAILY_UPLOAD_FILES` | Rolling 24-hour upload-count allowance; default 20 |
-| `GGAB_DRIVE_CREDENTIALS_PATH` | Private Drive authorization file location |
-| `GGAB_PUBLIC_ORIGIN` | Optional complete HTTPS origin for a trusted private reverse proxy |
-| `GGAB_REQUIRE_VPN_IDENTITY` | `1` requires the VPN identity header for non-loopback access |
-| `GGAB_UI_RELEASE` | Optional release directory name under `deployments/`; otherwise use `active.json` |
-| `GGAB_FEEDBACK_ROOT` | Optional feedback database directory |
-| `GGAB_FEEDBACK_WORKER_DISABLED` | `1` prevents the built-in mail worker from starting |
-| `GGAB_FEEDBACK_NO_MAIL` | `1` disables direct-mail configuration checks for isolated testing |
+| `YUXU_MEDIA_ROOT` | Media, sessions, and account/tracker/feedback metadata root; public default is project `media/` |
+| `YUXU_DB_PATH` | Shot SQLite database; defaults to project `ggab.db` |
+| `YUXU_UPLOAD_STORAGE` | `local` or `google_drive`; public default is `local` |
+| `YUXU_CPU_BUDGET` | Maximum FFmpeg CPU threads, clamped to detected availability; Windows default 14, non-Windows default 20 |
+| `YUXU_FFMPEG`, `YUXU_FFPROBE` | Optional full paths to executables, otherwise resolved from `PATH` |
+| `YUXU_SELF_REGISTRATION` | `1` permits registration under the supported local/private-network conditions; `0` disables it |
+| `YUXU_ACCOUNT_UPLOAD_GIB` | Per-account original-video capacity; default 200 GiB |
+| `YUXU_DAILY_UPLOAD_GIB` | Rolling 24-hour upload-byte allowance; default 50 GiB |
+| `YUXU_DAILY_UPLOAD_FILES` | Rolling 24-hour upload-count allowance; default 20 |
+| `YUXU_DRIVE_CREDENTIALS_PATH` | Private Drive authorization file location |
+| `YUXU_PUBLIC_ORIGIN` | Optional complete HTTPS origin for a trusted private reverse proxy |
+| `YUXU_REQUIRE_VPN_IDENTITY` | `1` requires the VPN identity header for non-loopback access |
+| `YUXU_UI_RELEASE` | Optional release directory name under `deployments/`; otherwise use `active.json` |
+| `YUXU_FEEDBACK_ROOT` | Optional feedback database directory |
+| `YUXU_FEEDBACK_WORKER_DISABLED` | `1` prevents the built-in mail worker from starting |
+| `YUXU_FEEDBACK_NO_MAIL` | `1` disables direct-mail configuration checks for isolated testing |
 
 Capacity reservations and upload quotas are persistent. Canceling an upload does not always refund daily allowances; remote-storage cleanup must be verified separately. Derived files are not included in the original-video quota, so monitor free space as well.
 
@@ -230,9 +219,9 @@ For private remote use, terminate HTTPS at a trusted local reverse proxy/VPN, co
 
 ```text
 app.py / production_app.py       API/backend and built React release hosting
-accounts.py / token_wallet.py   Authentication, ownership, quota/settlement ledger
+accounts.py                     Authentication and resource ownership
 analytics.py / schema.sql       Statistics and one-row-per-shot schema
-tracker.py / bridge.py          Project annotations and upstream companion queue
+tracker.py / local_data.py       Project annotations and existing local data bindings
 video_tools.py                  Video sessions, FFmpeg cuts, media streaming
 video_uploads.py                Durable chunk upload state
 playback_preview.py             Optional playback transcodes
@@ -242,7 +231,6 @@ templates/ / static/            Existing templates, controllers, charts, vendor 
 ui-versions/react/frontend/     React/Vite source and lockfile
 ui-versions/react/templates/    React host and embedded workspace templates
 ui-versions/react/page-config.json
-extension/                     Chromium companion and unit tests
 tools/init_db.py                Create an empty database without altering an existing one
 tools/build_release.py          Build and assemble a local UI release
 tools/connect_drive.py          Optional administrator Drive OAuth setup
@@ -258,13 +246,12 @@ Generated `media/`, `deployments/`, `exports/`, `backups/`, credentials, databas
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 .\.venv\Scripts\python.exe -m pytest -q
-node --test extension/*.test.cjs tests/*.cjs
+node --test --test-concurrency=14 tests/*.cjs
 .\.venv\Scripts\python.exe tools/build_release.py
 ```
 
-The tests use temporary media/test databases and mocked network behavior. FFmpeg-dependent checks require working FFmpeg/ffprobe. Unit tests do not submit real analysis jobs or validate live Drive/GGAB/Outlook connectivity. Personal browser-preview test fixtures are not distributed.
+The tests use temporary media/test databases and mocked network behavior. FFmpeg-dependent checks require working FFmpeg/ffprobe. Unit tests do not submit real analysis jobs or validate live Drive/Outlook connectivity. Personal browser-preview test fixtures are not distributed.
 
-The publication checks on 2026-10-17 passed 210 Python tests, 37 browser-controller tests, and 53 extension tests. Frontend dependency installation and release building also passed. An isolated, empty local installation was exercised in a browser through first administrator setup, video library, empty match responses, feedback submission, and the help page. These results do not establish cross-platform or live third-party integration coverage.
 
 For frontend changes, rebuild and assemble a new release, then restart the Python service. If you already ran `npm run build` in the frontend directory, `tools/build_release.py --skip-build` assembles those assets without rebuilding. The release tool copies UI files only; it does not migrate or replace user databases.
 
@@ -277,10 +264,9 @@ Use disposable database/media paths when experimenting. The manual CSV import co
 | “Build the React UI first” / missing release manifest | Run `npm ci` in the frontend directory, then `tools/build_release.py` from the repository root |
 | Port already in use | Stop the existing instance or choose a free interface port; 8000 must also be free when compatibility is enabled |
 | Empty analysis page | A clean clone has no matches; import compatible shots and verify ownership/video association |
-| Database/table error | Check `GGAB_DB_PATH`; `init_db.py` preserves existing files and does not repair an incorrect schema |
+| Database/table error | Check `YUXU_DB_PATH`; `init_db.py` preserves existing files and does not repair an incorrect schema |
 | Frame extraction or export fails | Check `ffmpeg -version`, `ffprobe -version`, input codec support, timestamps, and free disk space |
 | Upload says Drive is unavailable | Use explicit local mode, or complete administrator Drive authorization before choosing Drive mode |
-| Companion is idle | Check extension loading/configuration, port 8000, local pairing, the pinned upstream identity, and the upstream login |
 | Feedback mail does not arrive | A new clone has no mail connector/credentials/scheduler; inspect the queue and configure the operator integration |
 | HTTP 401/403 | Check the selected login context, resource ownership, CSRF/session state, origin, and configured private-network identity |
 

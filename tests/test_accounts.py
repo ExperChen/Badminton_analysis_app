@@ -11,8 +11,6 @@ from fastapi.testclient import TestClient
 
 import accounts
 import app as server
-import bridge
-import full_csv_sync as sync
 import tracker
 import video_tools as vt
 
@@ -21,7 +19,7 @@ SUBJECT = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
 
 
 def post(client, path, body):
-    return client.post(path, json=body, headers={"X-GGAB-Local":"1"})
+    return client.post(path, json=body, headers={"X-Yuxu-Local":"1"})
 
 
 def activate_user(admin, client, email):
@@ -37,7 +35,7 @@ def upload_video(client, filename, content):
     state = post(client, "/api/uploads", {"filename": filename, "size_bytes": len(content)})
     assert state.status_code == 201, state.text
     identifier = state.json()["upload_id"]
-    uploaded = client.put("/api/uploads/" + identifier, content=content, headers={"X-GGAB-Local": "1",
+    uploaded = client.put("/api/uploads/" + identifier, content=content, headers={"X-Yuxu-Local": "1",
         "Content-Range": f"bytes 0-{len(content)-1}/{len(content)}", "X-Chunk-SHA256": hashlib.sha256(content).hexdigest()})
     assert uploaded.status_code == 200, uploaded.text
     response = post(client, "/api/uploads/" + identifier + "/complete", {})
@@ -50,7 +48,6 @@ def environment(tmp_path, monkeypatch):
     monkeypatch.setattr(accounts, "ENFORCE_AUTH", True)
     db = tmp_path / "shots.db"
     monkeypatch.setattr(server, "DB_PATH", db)
-    monkeypatch.setattr(sync, "CSV_PATH", tmp_path / "exports" / "latest.csv")
     with sqlite3.connect(db) as conn:
         conn.executescript((server.ROOT / "schema.sql").read_text(encoding="utf-8"))
         for match, own in [("A",1),("A",0),("B",1),("B",0),("X",1)]:
@@ -143,7 +140,7 @@ def test_admin_project_edits_remember_names_for_owner_and_same_names_stay_indepe
         body = {"title": "Admin edited", "session_id": "video-" + label, "game_type": "singles",
                 "playing": False, "players": [{"slot": slot, "name": "Shared Name" if slot == "A1" else label + " New Opponent",
                 "handedness": hand, "is_you": False, "snapshot_id": snap.json()["id"]} for slot in ("A1", "B1")], "segments": []}
-        edited = admin.put("/api/tracker/projects/project-" + label, json=body, headers={"X-GGAB-Local": "1"})
+        edited = admin.put("/api/tracker/projects/project-" + label, json=body, headers={"X-Yuxu-Local": "1"})
         assert edited.status_code == 200, edited.text
         # Persistence must survive removal of the project source for suggestions.
         with tracker.database() as conn:
@@ -160,20 +157,18 @@ def test_admin_project_edits_remember_names_for_owner_and_same_names_stay_indepe
 @pytest.mark.parametrize("path", [
     "/api/matches/B/breakdown", "/api/matches/B/export", "/api/matches/B/video",
     "/api/matches/video-B/video", "/api/matches/video-B/playback-preview",
-    "/api/tracker/projects/project-B", "/api/tracker/projects/project-B/handoff", "/api/tracker/projects/project-B/cost-history",
+    "/api/tracker/projects/project-B",
     "/api/tracker/snapshots/snapshot-B", "/api/tracker/frame/video-B",
     "/api/clips/"+"b"*32, "/api/clips/"+"b"*32+"/download", "/api/my/export.csv?match_id=B"
 ])
 def test_every_resource_route_denies_foreign_ids(environment, path):
     alice = environment["clients"][1]
-    expected = 403 if path.endswith('/export') or '/export.csv' in path or path.endswith('/cost-history') else 404
+    expected = 403 if path.endswith('/export') or '/export.csv' in path  else 404
     assert alice.get(path, headers={"Range":"bytes=0-1"}).status_code == expected
 
 
 def test_raw_export_pairing_and_local_paths_require_admin(environment):
     _, alice, _, _ = environment["clients"]
-    assert alice.get("/api/bridge/full-export.csv").status_code == 403
-    assert post(alice,"/api/bridge/pair",{}).status_code == 403
     assert post(alice,"/api/sessions/link",{"relative_path":"other.mp4"}).status_code == 403
     assert alice.get("/api/sessions/local-videos").json() == {"directory":"","videos":[]}
     assert alice.get("/api/admin/users").status_code == 403
@@ -182,9 +177,8 @@ def test_raw_export_pairing_and_local_paths_require_admin(environment):
 
 def test_csrf_host_and_worker_get_are_checked(environment):
     _, alice, _, guest = environment["clients"]
-    assert alice.post("/api/auth/logout",headers={"X-CSRF-Token":"wrong","X-GGAB-Local":"1"}).status_code == 403
+    assert alice.post("/api/auth/logout",headers={"X-CSRF-Token":"wrong","X-Yuxu-Local":"1"}).status_code == 403
     assert guest.get("/api/auth/status",headers={"Host":"evil.example"}).status_code == 403
-    assert guest.get("/api/bridge/worker/projects/project-A/video").status_code == 401
     assert guest.get("/api/tracker/snapshots/snapshot-A").status_code == 401
 
 
@@ -226,38 +220,7 @@ def test_suspension_blocks_login_and_new_tasks(environment):
     uid=environment["identities"][1]["id"]
     assert post(admin,f"/api/admin/users/{uid}/state",{"enabled":False}).status_code == 200
     assert alice.get("/api/my/export.csv").status_code == 401
-    assert not accounts.task_enabled("project-A")
     assert post(guest,"/api/auth/login",{"email":"alice@example.test","password":PASSWORD}).status_code == 401
-
-
-def test_worker_pins_source_and_rejects_other_ggab_identity(environment):
-    admin, _, _, guest = environment["clients"]
-    paired=post(admin,"/api/bridge/pair",{}).json()["token"]
-    headers={"Authorization":"Bearer "+paired}
-    assert guest.post("/api/bridge/worker/source",json={"user_id":SUBJECT},headers=headers).status_code == 200
-    assert guest.post("/api/bridge/worker/source",json={"user_id":"bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee"},headers=headers).status_code == 409
-    assert guest.post("/api/bridge/worker/claim",json={"extension_version":"1.4.4"},headers=headers).status_code == 409
-    headers["X-GGAB-Subject"]=SUBJECT
-    assert guest.post("/api/bridge/worker/claim",json={"extension_version":"1.4.3"},headers=headers).status_code == 409
-    assert guest.post("/api/bridge/worker/claim",json={"extension_version":"1.5.0"},headers=headers).status_code == 200
-
-
-def test_full_sync_keeps_missing_matches_and_publishes_immutable_csv(environment):
-    db=environment["db"]
-    with sqlite3.connect(db) as conn:
-        cols=[r[1] for r in conn.execute("PRAGMA table_info(shots)")]
-        a=conn.execute("SELECT * FROM shots WHERE match_id='A'").fetchall()
-    output=io.StringIO(newline="")
-    writer=csv.writer(output);writer.writerow(cols);writer.writerows(a)
-    ticket=sync.begin(db,"A")["ticket"]
-    result=sync.apply_snapshot(db,ticket,output.getvalue(),{})
-    assert Path(result["path"]).parent.name == "snapshots"
-    assert not sync.CSV_PATH.exists()
-    with sqlite3.connect(db) as conn:
-        assert conn.execute("SELECT COUNT(*) FROM shots WHERE match_id='B'").fetchone()[0] == 2
-    assert sync.status(db)["missing_match_ids"] == ["B","X"]
-    assert environment["clients"][0].get("/api/bridge/full-export.csv").status_code == 403
-    assert environment["clients"][1].get("/api/bridge/full-export.csv").status_code == 403
 
 
 def test_empty_user_and_admin_personal_export_do_not_receive_the_master_csv(environment):
@@ -270,13 +233,14 @@ def test_empty_user_and_admin_personal_export_do_not_receive_the_master_csv(envi
         assert 'text/csv' not in exported.headers.get('content-type', '')
 
 
-def test_local_team_view_does_not_rewrite_original_ggab_flags(environment):
+def test_local_team_view_does_not_rewrite_original_flags(environment):
     alice = environment["clients"][1]
     with tracker.database() as conn:
         saved={"id":"project-A","title":"A","session_id":"video-A","players":[{"slot":"A1","is_you":True},{"slot":"B1","is_you":False}]}
         conn.execute("UPDATE projects SET payload=? WHERE id='project-A'",(json.dumps(saved),))
-        conn.execute("INSERT INTO migration_links VALUES(?,?,?)",("project-A",json.dumps({"remote_project_id":"A"}),"now"))
     with sqlite3.connect(environment["db"]) as conn:
+        conn.execute("CREATE TABLE match_video_links(match_id TEXT PRIMARY KEY, session_id TEXT, project_id TEXT)")
+        conn.execute("INSERT INTO match_video_links VALUES(?,?,?)", ("A","video-A","project-A"))
         conn.execute("UPDATE shots SET striker_is_you=0,rally_won_by_you=0,score_a_before=0,score_b_before=0,score_a_after=1,score_b_after=0 WHERE match_id='A'")
     data=alice.get("/api/matches/A/breakdown").json()
     assert data["summary"]["own_shots"] == 1
@@ -301,75 +265,15 @@ def test_new_upload_and_shared_file_keep_distinct_owned_sessions(environment, mo
     assert alice.get(f"/api/matches/{b}/video").status_code == 404
     assert bob.get(f"/api/matches/{a}/video").status_code == 404
     assert post(alice, "/api/uploads", {"filename": "shared.mp4", "match_id": b, "size_bytes": 7}).status_code == 404
-    deleted = alice.delete(f"/api/sessions/{a}", headers={"X-GGAB-Local": "1"})
+    deleted = alice.delete(f"/api/sessions/{a}", headers={"X-Yuxu-Local": "1"})
     assert deleted.status_code == 200 and deleted.json()["video_retained"]
     assert bob.get(f"/api/matches/{b}/video").content == b"same original video"
 
 
-def test_upload_project_worker_link_and_full_csv_preserve_creator(environment, monkeypatch):
-    admin, alice, bob, guest = environment["clients"]
-    monkeypatch.setattr(vt, "probe", lambda path: {"duration": 10, "has_audio": False})
-    monkeypatch.setattr(tracker, "frame_bytes", lambda *args: b"test jpeg")
-    upload = upload_video(alice, "alice-new.mp4", b"alice original")
-    sid = upload.json()["match_id"]
-    snapshot = post(alice, "/api/tracker/snapshots", {"session_id": sid, "time": 0, "rotation": 0,
-                                                   "box": {"x": 0, "y": 0, "width": 1, "height": 1}})
-    assert snapshot.status_code == 201, snapshot.text
-    body = {"title": "alice new", "session_id": sid, "game_type": "singles", "playing": True,
-            "players": [{"slot": slot, "name": slot, "handedness": "right", "is_you": slot == "A1",
-                         "snapshot_id": snapshot.json()["id"]} for slot in ("A1", "B1")], "segments": []}
-    created = post(alice, "/api/tracker/projects", body)
-    assert created.status_code == 201, created.text
-    pid = created.json()["id"]
-    remembered = {item["name"]: item for item in alice.get("/api/tracker/player-options").json()}
-    assert remembered["A1"] == {"name":"A1","handedness":"right","is_you":1}
-    assert remembered["B1"] == {"name":"B1","handedness":"right","is_you":0}
-    assert "A1" not in {item["name"] for item in bob.get("/api/tracker/player-options").json()}
-    remote = "12345678-abcd-4abc-8abc-123456789abc"
-    link = {"remote_project_id": remote, "remote_url": f"https://app.getgoodatbadminton.com/tracker/{remote}",
-            "status": "review", "source": "uploaded", "evidence": {"remote_video_id": "remote-video",
-            "filename": "alice-new.mp4", "duration": 10, "size_bytes": len(b"alice original"),
-            "method": "created_from_local_upload"}}
-    assert alice.put(f"/api/tracker/projects/{pid}/migration", json=link,
-                     headers={"X-GGAB-Local": "1"}).status_code == 403
-    with tracker.database() as conn:
-        state = json.loads(conn.execute("SELECT payload FROM migration_workflows WHERE project_id=?", (pid,)).fetchone()[0])
-        state.update(source="uploaded", video_id="remote-video")
-        conn.execute("UPDATE migration_workflows SET stage='create_project',payload=? WHERE project_id=?", (json.dumps(state), pid))
-    bridge_token = post(admin, "/api/bridge/pair", {}).json()["token"]
-    headers = {"Authorization": "Bearer " + bridge_token, "X-GGAB-Subject": SUBJECT}
-    assert guest.post("/api/bridge/worker/source", json={"user_id": SUBJECT}, headers=headers).status_code == 200
-    bound = guest.post(f"/api/bridge/worker/projects/{pid}/link", json=link, headers=headers)
-    assert bound.status_code == 200, bound.text
-    assert accounts.owner("match", remote)["user_id"] == environment["identities"][1]["id"]
-    with sqlite3.connect(environment["db"]) as conn:
-        columns = [r[1] for r in conn.execute("PRAGMA table_info(shots)")]
-        rows = conn.execute("SELECT * FROM shots WHERE match_id IN ('A','B')").fetchall()
-    incoming = []
-    for row in rows:
-        values = dict(zip(columns, row))
-        if values["match_id"] == "A":
-            values["match_id"] = remote
-            values["shot_id"] = "new-" + values["shot_id"]
-        incoming.append(tuple(values[column] for column in columns))
-    output = io.StringIO(newline="")
-    writer = csv.writer(output); writer.writerow(columns); writer.writerows(incoming)
-    ticket = sync.begin(environment["db"], remote)["ticket"]
-    sync.apply_snapshot(environment["db"], ticket, output.getvalue(),
-                        {remote: {"project_id": pid, "session_id": sid}})
-    assert alice.get(f'/api/matches/{remote}/breakdown').json()['summary']['shots'] == 2
-    assert remote in {m['match_id'] for m in alice.get('/api/matches').json()}
-    assert remote not in {m['match_id'] for m in bob.get('/api/matches').json()}
-    assert bob.get(f"/api/tracker/projects/{pid}").status_code == 404
-    assert bob.get(f"/api/matches/{remote}/video").status_code == 404
-
-
-def test_delete_project_preserves_hidden_ownership_for_resynchronization(environment):
+def test_delete_project_preserves_hidden_ownership_for_local_bindings(environment):
     alice = environment["clients"][1]
     accounts.bind_match("A","project-A")
-    with tracker.database() as conn:
-        conn.execute("INSERT INTO migration_links VALUES(?,?,?)",("project-A",json.dumps({"remote_project_id":"A"}),"now"))
-    r=alice.delete("/api/tracker/projects/project-A",headers={"X-GGAB-Local":"1"})
+    r=alice.delete("/api/tracker/projects/project-A",headers={"X-Yuxu-Local":"1"})
     assert r.status_code == 200, r.text
     accounts.bind_match("A","project-A")
     assert accounts.owner("match","A")["hidden"] == 1
@@ -404,14 +308,13 @@ def test_one_browser_keeps_two_contexts_and_logout_independent(environment):
     assert f'src="{a}/static/account-context.js"' in page.text
     assert f'href="{a}/insights/match-breakdown"' in page.text
     assert browser.get(a + "/static/account-context.js").status_code == 200
-    tokens_page = browser.get(a + "/account/tokens")
-    assert tokens_page.status_code == 200
-    assert '当前可用额度' in tokens_page.text
-    assert f'src="{a}/static/token-ui.js?' in tokens_page.text
-    assert f'href="{a}/account"' in tokens_page.text
+    assert browser.get(a + "/account/tokens").status_code == 404
+    account_page = browser.get(a + "/account")
+    assert account_page.status_code == 200
+    assert f'src="{a}/static/accounts.js?' in account_page.text
     # Another tab's CSRF cannot act as this context.
-    assert browser.post(a + "/api/auth/logout", headers={"X-GGAB-Local": "1", "X-CSRF-Token": identities[1]["csrf"]}).status_code == 403
-    assert browser.post(a + "/api/auth/logout", headers={"X-GGAB-Local": "1", "X-CSRF-Token": identities[0]["csrf"]}).status_code == 200
+    assert browser.post(a + "/api/auth/logout", headers={"X-Yuxu-Local": "1", "X-CSRF-Token": identities[1]["csrf"]}).status_code == 403
+    assert browser.post(a + "/api/auth/logout", headers={"X-Yuxu-Local": "1", "X-CSRF-Token": identities[0]["csrf"]}).status_code == 200
     assert browser.get(a + "/api/me").status_code == 401
     assert browser.get(b + "/api/me").json()["id"] == identities[1]["id"]
     assert browser.get(b + "/api/my/export.csv").status_code == 403
@@ -525,25 +428,3 @@ def test_admin_inventory_preserves_suspended_uploads_and_omits_deleted_resources
     assert groups[bob_id]["enabled"] == 0
     assert groups[bob_id]["video_count"] == 1
     assert groups[bob_id]["videos"][0]["projects"] == []
-
-
-def test_admin_inventory_lists_multiple_project_stages_without_duplicate_video(environment):
-    admin = environment["clients"][0]
-    with tracker.database() as conn:
-        migration = {"status": "finalized", "remote_project_id": "remote-A", "association": {"verified": True}}
-        conn.execute("INSERT INTO migration_links VALUES(?,?,?)", ("project-A", json.dumps(migration), "now"))
-        conn.execute("INSERT INTO migration_workflows VALUES(?,?,?,?,?)", ("project-A", "complete", "{}", 0, "now"))
-        conn.execute("INSERT INTO projects VALUES(?,?,?)", ("other-A", json.dumps({"id": "other-A", "session_id": "video-A", "title": "第二场"}), "now"))
-        conn.execute("INSERT INTO migration_links VALUES(?,?,?)", ("other-A", json.dumps({"status": "review", "remote_project_id": "unverified"}), "now"))
-    # The browser's selected login context, rather than a root cookie, controls this endpoint.
-    base = "/s/" + "d" * 32
-    assert post(admin, base + "/api/auth/login", {"email": "admin@example.test", "password": PASSWORD}).status_code == 200
-    data = admin.get(base + "/api/admin/uploads").json()
-    assert data["total_videos"] == 2
-    group = next(group for group in data["accounts"] if group["email"] == "alice@example.test")
-    assert group["video_count"] == 1
-    projects = {project["id"]: project for project in group["videos"][0]["projects"]}
-    assert projects["project-A"]["workflow_stage"] == "complete"
-    assert projects["project-A"]["remote_match_id"] == "remote-A"
-    assert projects["other-A"]["migration_status"] == "review"
-    assert projects["other-A"]["remote_match_id"] is None

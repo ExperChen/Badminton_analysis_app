@@ -24,21 +24,19 @@ from starlette._utils import get_route_path
 
 from analytics import analyze
 import video_tools as videos
-import full_csv_sync
+import local_data
 import playback_preview
 import video_uploads
 import drive_storage
 import accounts
-import token_wallet
 import service_logging
 import security_config
 import feedback
 import feedback_mail
 from tracker import router as tracker_router, database as tracker_database, saved_player_options
-from bridge import router as bridge_router, authorize as authorize_bridge
 
 ROOT = Path(__file__).resolve().parent
-DB_PATH = Path(os.environ.get("GGAB_DB_PATH", ROOT / "ggab.db")).resolve()
+DB_PATH = Path(os.environ.get("YUXU_DB_PATH", ROOT / "ggab.db")).resolve()
 @asynccontextmanager
 async def lifespan(application):
     feedback_mail.start()
@@ -54,9 +52,7 @@ service_logging.configure()
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 templates = Jinja2Templates(directory=ROOT / "templates")
 app.include_router(tracker_router)
-app.include_router(bridge_router)
 app.include_router(accounts.router)
-app.include_router(token_wallet.router)
 app.include_router(feedback.router)
 ALLOWED_LOCAL_HOSTS = {"127.0.0.1", "localhost", "[::1]", "::1"}
 
@@ -101,24 +97,11 @@ async def local_mutations(request, call_next):
     if (security_config.public_origin() and request.url.hostname not in security_config.LOCAL_HOSTS
             and (request.url.scheme != "https" or f"{request.url.scheme}://{request.url.netloc}" != security_config.public_origin())):
         return JSONResponse({"detail": "请使用已配置的 HTTPS 网站地址访问"}, status_code=403)
-    if (os.environ.get("GGAB_REQUIRE_VPN_IDENTITY") == "1"
+    if (os.environ.get("YUXU_REQUIRE_VPN_IDENTITY") == "1"
             and request.url.hostname not in security_config.LOCAL_HOSTS
             and not request.headers.get("tailscale-user-login")):
         return JSONResponse({"detail": "请通过已登录的私有网络访问"}, status_code=403)
     route_path = get_route_path(request.scope)
-    worker = route_path.startswith("/api/bridge/worker/")
-    if worker:
-        try:
-            authorize_bridge(request)
-            if route_path != "/api/bridge/worker/source":
-                accounts.check_source(request.headers.get("x-ggab-subject"))
-        except HTTPException as exc:
-            return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
-        token = accounts.principal.set({"id": "executor", "role": "worker"})
-        try:
-            return await call_next(request)
-        finally:
-            accounts.principal.reset(token)
     user = accounts.authenticate(request) if accounts.ENFORCE_AUTH else None
     public = route_path in {"/login", "/health", "/api/auth/status", "/api/auth/setup", "/api/auth/register", "/api/auth/login", "/api/auth/password-reset/complete"} or route_path.startswith("/static/")
     if accounts.ENFORCE_AUTH and not public and not user:
@@ -128,7 +111,7 @@ async def local_mutations(request, call_next):
     if route_path in {'/docs', '/redoc', '/openapi.json'} and accounts.ENFORCE_AUTH and user.get('role') != 'admin':
         return JSONResponse({'detail': '仅管理员可访问接口诊断资料'}, status_code=403)
     if request.method in {"GET", "HEAD"} and (
-        route_path in {"/api/my/export.csv", "/api/bridge/full-export.csv"}
+        route_path == "/api/my/export.csv"
         or re.fullmatch(r"/api/matches/[^/]+/export", route_path)
         or re.fullmatch(r"/api/bridge/projects/[^/]+/shots\.csv", route_path)
     ):
@@ -136,7 +119,7 @@ async def local_mutations(request, call_next):
                             headers={"Cache-Control": "no-store"})
     if request.method in ("POST", "PUT", "DELETE", "PATCH"):
         origin = request.headers.get("origin")
-        if request.headers.get("x-ggab-local") != "1" or (
+        if request.headers.get("x-yuxu-local") != "1" or (
             origin and origin != f"{request.url.scheme}://{request.url.netloc}"
         ):
             return JSONResponse({"detail": "请从本地网站发起这个操作。"}, status_code=403)
@@ -179,11 +162,6 @@ def account_page(request: Request):
     return page(request, "accounts.html")
 
 
-@app.get("/account/tokens", response_class=HTMLResponse)
-def tokens_page(request: Request):
-    return page(request, "tokens.html")
-
-
 @app.get("/api/admin/logs")
 def admin_logs():
     accounts.admin_required()
@@ -221,7 +199,7 @@ def query(sql, params=(), *, personal=False):
 
 
 def canonical_match(match_id):
-    mappings = full_csv_sync.aliases(DB_PATH)
+    mappings = local_data.aliases(DB_PATH)
     if match_id in mappings:
         return match_id
     matched = [remote for remote, session in mappings.items() if session == match_id]
@@ -230,7 +208,7 @@ def canonical_match(match_id):
 
 def video_session(match_id):
     resolved = canonical_match(match_id)
-    mapping = full_csv_sync.aliases(DB_PATH)
+    mapping = local_data.aliases(DB_PATH)
     if resolved in mapping:
         accounts.require("match", resolved)
     elif not accounts.visible("match", resolved):
@@ -279,7 +257,7 @@ def matches():
                  "COUNT(DISTINCT rally_id) AS rallies FROM shots GROUP BY match_id "
                  "ORDER BY date DESC, title DESC, match_id")
     records = visible_records()
-    mappings = full_csv_sync.aliases(DB_PATH)
+    mappings = local_data.aliases(DB_PATH)
     project_references = tracker_session_references()
     known = {m["match_id"] for m in result}
     linked_sessions = {session for remote, session in mappings.items() if remote in known}
@@ -301,7 +279,7 @@ def matches():
 
 @app.get("/api/data-revision")
 def data_revision():
-    saved = full_csv_sync.status(DB_PATH)
+    saved = local_data.revision(DB_PATH)
     return {"revision": saved.get("revision"), "imported_at": saved.get("imported_at")}
 
 
@@ -346,7 +324,7 @@ def data(match_id: str, game: int | None = Query(None, ge=1),
     result = analyze(analysis_rows, perspective)
     result["perspective_labels"] = perspective_labels
     if accounts.ENFORCE_AUTH:
-        result["warnings"].append("观察方按本地项目选择；没有项目设置时沿用 GGAB 标记。上传者身份不用于推断球员。")
+        result["warnings"].append("观察方按比赛项目选择；没有项目设置时沿用已有球员标注。上传者身份不用于推断球员。")
     result["games"] = [r["game_number"] for r in query(
         "SELECT DISTINCT game_number FROM shots WHERE match_id=? "
         "AND game_number IS NOT NULL ORDER BY game_number", (match_id,))]
@@ -357,11 +335,12 @@ def data(match_id: str, game: int | None = Query(None, ge=1),
 
 
 def local_analysis_view(match_id, rows):
-    """Derive a local team perspective without changing the official CSV."""
+    """Derive a team perspective without changing stored shot records."""
     if not accounts.ENFORCE_AUTH:
         return rows, {"you": "观察方", "opponent": "另一方"}
     with tracker_database() as conn:
-        project_row = conn.execute("SELECT p.id,p.payload FROM projects p JOIN migration_links m ON m.project_id=p.id WHERE json_extract(m.payload,'$.remote_project_id')=?", (match_id,)).fetchone()
+        pid = local_data.project_matches(DB_PATH).get(match_id)
+        project_row = conn.execute("SELECT id,payload FROM projects WHERE id=?", (pid,)).fetchone()
     if not project_row or not accounts.visible("project", project_row["id"]):
         return rows, {"you": "观察方", "opponent": "另一方"}
     saved = json.loads(project_row["payload"])
@@ -431,11 +410,6 @@ async def reclaim_duplicate_video(session_id: str):
     accounts.admin_required()
     accounts.require("session", session_id)
     references = tracker_session_references().get(session_id, set())
-    if references:
-        with tracker_database() as conn:
-            rows = conn.execute("SELECT project_id,stage FROM migration_workflows").fetchall()
-        if any(row["project_id"] in references and row["stage"] != "complete" for row in rows):
-            raise HTTPException(409, "关联项目的 GGAB 迁移仍在进行，暂不释放原视频副本。")
     try:
         return await run_in_threadpool(videos.reclaim_duplicate_original, session_id)
     except (ValueError, OSError) as exc:

@@ -31,7 +31,7 @@ class NoRedirect(HTTPRedirectHandler):
 
 
 def credentials_path():
-    return Path(os.environ.get("GGAB_DRIVE_CREDENTIALS_PATH", Path(__file__).parent / ".secrets" / "google-drive.json"))
+    return Path(os.environ.get("YUXU_DRIVE_CREDENTIALS_PATH", Path(__file__).parent / ".secrets" / "google-drive.json"))
 
 
 def configuration():
@@ -147,8 +147,8 @@ def account_folder(owner_id):
                 folder = None
         if folder is None:
             query = (f"'{query_value(root)}' in parents and trashed = false and mimeType = '{FOLDER_MIME}' "
-                     f"and appProperties has {{ key='ggab_owner' and value='{query_value(owner_id)}' }} "
-                     "and appProperties has { key='ggab_kind' and value='account_videos' }")
+                     f"and appProperties has {{ key='yuxu_owner' and value='{query_value(owner_id)}' }} "
+                     "and appProperties has { key='yuxu_kind' and value='account_videos' }")
             matches = list(list_files(query))
             if len(matches) > 1:
                 raise HTTPException(409, "发现重复账号文件夹，请管理员核对")
@@ -158,12 +158,12 @@ def account_folder(owner_id):
                 label = user["email"] if user else "local"
                 label = re.sub(r'[\\/\x00-\x1f]', "_", label)[:120]
                 payload = {"name": f"{label}__{owner_id[:8]}", "mimeType": FOLDER_MIME,
-                           "parents": [root], "appProperties": {"ggab_owner": owner_id, "ggab_kind": "account_videos"}}
+                           "parents": [root], "appProperties": {"yuxu_owner": owner_id, "yuxu_kind": "account_videos"}}
                 folder = read_json(open_api(API + "?" + urlencode({"fields": FIELDS}), "POST",
                                             json.dumps(payload).encode(), {"Content-Type": "application/json"}))
         if (folder.get("mimeType") != FOLDER_MIME or folder.get("trashed") or
-                folder.get("parents") != [root] or folder.get("appProperties", {}).get("ggab_owner") != owner_id or
-                folder.get("appProperties", {}).get("ggab_kind") != "account_videos"):
+                folder.get("parents") != [root] or folder.get("appProperties", {}).get("yuxu_owner") != owner_id or
+                folder.get("appProperties", {}).get("yuxu_kind") != "account_videos"):
             raise HTTPException(409, "Drive 账号文件夹归属或位置已变化，未写入视频")
         identifier = file_id(folder.get("id"))
         connection.execute("INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)", (key, identifier))
@@ -174,7 +174,7 @@ def organize_file(meta, owner_id):
     """Move a registered video without changing its ID or its content."""
     folder = account_folder(owner_id)
     properties = meta.get("appProperties", {})
-    if meta.get("parents") == [folder] and properties.get("ggab_owner") == owner_id:
+    if meta.get("parents") == [folder] and properties.get("yuxu_owner") == owner_id:
         return meta
     params = {"fields": FIELDS, "supportsAllDrives": "true"}
     if folder not in meta.get("parents", []):
@@ -182,12 +182,12 @@ def organize_file(meta, owner_id):
     old = [parent for parent in meta.get("parents", []) if parent != folder]
     if old:
         params["removeParents"] = ",".join(old)
-    payload = {"appProperties": {**properties, "ggab_owner": owner_id}}
+    payload = {"appProperties": {**properties, "yuxu_owner": owner_id}}
     result = read_json(open_api(API + "/" + file_id(meta["id"]) + "?" + urlencode(params), "PATCH",
                                 json.dumps(payload).encode(), {"Content-Type": "application/json"}))
     if (result.get("id") != meta["id"] or result.get("parents") != [folder] or
             result.get("md5Checksum") != meta.get("md5Checksum") or
-            result.get("appProperties", {}).get("ggab_owner") != owner_id):
+            result.get("appProperties", {}).get("yuxu_owner") != owner_id):
         raise HTTPException(409, "Drive 整理结果未通过核验")
     return result
 
@@ -198,7 +198,7 @@ def begin(data):
             ".mkv": "video/x-matroska", ".webm": "video/webm", ".avi": "video/x-msvideo"}[Path(data["filename"]).suffix.lower()]
     payload = {"name": data["filename"], "parents": [data["drive_folder_id"]],
                "mimeType": mime,
-               "appProperties": {"ggab_upload_id": data["upload_id"], "ggab_owner": data["owner_id"]}}
+               "appProperties": {"yuxu_upload_id": data["upload_id"], "yuxu_owner": data["owner_id"]}}
     url = "https://www.googleapis.com/upload/drive/v3/files?" + urlencode({"uploadType": "resumable", "fields": FIELDS})
     response = open_api(url, "POST", json.dumps(payload).encode(),
                         {"Content-Type": "application/json", "X-Upload-Content-Type": mime,
@@ -219,8 +219,8 @@ def progress(data, content=None, start=None):
         response.close()
         # A successfully completed session can disappear before its response is recorded.
         query = ("trashed = false and "
-                 f"appProperties has {{ key='ggab_upload_id' and value='{query_value(data['upload_id'])}' }} and "
-                 f"appProperties has {{ key='ggab_owner' and value='{query_value(data['owner_id'])}' }}")
+                 f"appProperties has {{ key='yuxu_upload_id' and value='{query_value(data['upload_id'])}' }} and "
+                 f"appProperties has {{ key='yuxu_owner' and value='{query_value(data['owner_id'])}' }}")
         found = read_json(open_api(API + "?" + urlencode({"q": query, "fields": f"files({FIELDS})", "pageSize": 2}))).get("files", [])
         if len(found) != 1:
             raise HTTPException(410, "Drive 续传会话已过期，请重新上传")
@@ -239,7 +239,7 @@ def progress(data, content=None, start=None):
 def verify_metadata(meta, data):
     properties = meta.get("appProperties", {})
     if (meta.get("trashed") or int(meta.get("size", -1)) != data["size_bytes"] or
-            properties.get("ggab_upload_id") != data["upload_id"] or properties.get("ggab_owner") != data["owner_id"]):
+            properties.get("yuxu_upload_id") != data["upload_id"] or properties.get("yuxu_owner") != data["owner_id"]):
         raise HTTPException(409, "Drive 文件与上传记录不一致，未建立视频关联")
     file_id(meta.get("id"))
     if not re.fullmatch(r"[0-9a-f]{32}", meta.get("md5Checksum", "")):

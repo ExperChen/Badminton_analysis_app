@@ -20,7 +20,7 @@ async function deleteSession(sessionId) {
   const selected=$("match").value===sessionId;
   if(selected){clearTimeout(clipPoll);resetVideo();pendingVideo=null;serverVideoVersion=null;}
   try {
-    const response=await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`,{method:"DELETE",headers:{"X-GGAB-Local":"1"}});
+    const response=await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`,{method:"DELETE",headers:{"X-Yuxu-Local":"1"}});
     const result=await response.json();
     if(!response.ok)throw new Error(result.detail||"删除失败");
     await refreshSessions();
@@ -81,11 +81,11 @@ function attachSavedVideo() {
   }
   videoURL=`/api/matches/${encodeURIComponent(data.match_id)}/video?v=${encodeURIComponent(data.video.updated_at)}`;
   videoMatch=data.match_id;serverVideoVersion=version;
-  const video=$("video");video.src=window.GGABPath(videoURL);video.hidden=false;$("video-empty").hidden=true;
+  const video=$("video");video.src=window.YuxuPath(videoURL);video.hidden=false;$("video-empty").hidden=true;
   $("video-name").textContent=data.video.filename;video.playbackRate=Number($("speed").value);video.load();
 }
 function uploadVideo(file, sessionId=null) {
-  return window.GGABUploadVideo(file, {sessionId, onProgress: event => {
+  return window.YuxuUploadVideo(file, {sessionId, onProgress: event => {
     const percent=Math.round(event.loaded/event.total*100);
     $("upload-progress").value=event.phase==='complete'?100:Math.min(99,percent);
     const stage=event.phase==='checking'?'核对已上传片段':event.phase==='verifying'?'上传完成，正在验证视频':'正在上传';
@@ -112,7 +112,7 @@ function drawJobs(jobs) {
   $("clip-jobs").innerHTML=jobs.slice(0,5).map(job=>{
     const scope=job.game?`第 ${job.game} 局`:"全部局数";
     const title=`${scope} · ${job.plan.rally_count} 回合 · ${job.plan.score_overlay?.enabled?"含动态比分":"无比分旧版"} · ${new Date(job.created_at).toLocaleString()}`;
-    if(job.status==="complete")return `<div class="clip-job"><div><strong>✓ 精剪完成</strong><small>${esc(title)} · ${durationText(job.output_duration)}</small></div><a class="button" href="${esc(window.GGABPath(job.download_url))}">↓ 下载 视频</a><a class="timeline-link" href="${esc(window.GGABPath(job.timeline_url))}">时间轴</a></div>`;
+    if(job.status==="complete")return `<div class="clip-job"><div><strong>✓ 精剪完成</strong><small>${esc(title)} · ${durationText(job.output_duration)}</small></div><a class="button" href="${esc(window.YuxuPath(job.download_url))}">↓ 下载 视频</a><a class="timeline-link" href="${esc(window.YuxuPath(job.timeline_url))}">时间轴</a></div>`;
     if(job.status==="failed")return `<div class="clip-job failed"><div><strong>剪辑未完成</strong><small>${esc(title)}</small><p>${esc(window.AppText.error(job.error))}</p></div></div>`;
     return `<div class="clip-job"><div><strong>${job.status==="queued"?"等待剪辑":"正在剪辑"} · ${job.progress}%</strong><small>${esc(title)}</small><progress max="100" value="${job.progress}"></progress></div></div>`;
   }).join("");
@@ -134,7 +134,7 @@ async function generateClip() {
   try {
     const settings={...validPadding(),game:$("game").value?Number($("game").value):null};
     mediaBusy=true;enableMedia();
-    const response=await fetch(`/api/matches/${encodeURIComponent(session)}/clips`,{method:"POST",headers:{"Content-Type":"application/json","X-GGAB-Local":"1"},body:JSON.stringify(settings)});
+    const response=await fetch(`/api/matches/${encodeURIComponent(session)}/clips`,{method:"POST",headers:{"Content-Type":"application/json","X-Yuxu-Local":"1"},body:JSON.stringify(settings)});
     const job=await response.json();if(!response.ok)throw new Error(typeof job.detail==="string"?job.detail:"剪辑请求失败，请检查设置。");
     if(session===$("match").value){drawJobs([job]);await refreshJobs();}
   }catch(error){message("无法生成精剪",error.message);}finally{mediaBusy=false;enableMedia();}
@@ -151,10 +151,10 @@ if($("save-video"))$("save-video").addEventListener("click",()=>{if(pendingVideo
 if($("generate-clip"))$("generate-clip").addEventListener("click",generateClip);
 if($("clip-before"))$("clip-before").addEventListener("input",updateClipPlan);if($("clip-after"))$("clip-after").addEventListener("input",updateClipPlan);
 $("session-cards").addEventListener("click",e=>{const remove=e.target.closest("[data-delete-session]");if(remove){deleteSession(remove.dataset.deleteSession);return;}const b=e.target.closest("[data-session]");if(b){$("match").value=b.dataset.session;load(true);}});
-document.addEventListener("ggab:sessions-loaded",renderSessions);
-document.addEventListener("ggab:loading",()=>{mediaLoading=true;++planVersion;mediaPlan=null;enableMedia();});
-document.addEventListener("ggab:match-loaded",mediaLoaded);
-document.addEventListener("ggab:video-selected",event=>{pendingVideo=event.detail;serverVideoVersion=null;updateClipPlan();});
+document.addEventListener("yuxu:sessions-loaded",renderSessions);
+document.addEventListener("yuxu:loading",()=>{mediaLoading=true;++planVersion;mediaPlan=null;enableMedia();});
+document.addEventListener("yuxu:match-loaded",mediaLoaded);
+document.addEventListener("yuxu:video-selected",event=>{pendingVideo=event.detail;serverVideoVersion=null;updateClipPlan();});
 $("match").addEventListener("change",()=>{++planVersion;mediaPlan=null;enableMedia();});
 $("game").addEventListener("change",()=>{++planVersion;mediaPlan=null;enableMedia();});
 window.addEventListener("beforeunload",()=>clearTimeout(clipPoll));

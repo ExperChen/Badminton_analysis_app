@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 test('technical failures stay out of user views while administrators can inspect diagnostics',()=>{
-  const window={GGABUser:{role:'admin'}};
+  const window={YuxuUser:{role:'admin'}};
   vm.runInNewContext(fs.readFileSync(__dirname+'/../static/ui-language.js','utf8'),{window});
   assert.equal(window.AppText.error('FFmpeg Traceback frame.py'),'操作暂未完成，请稍后重试或联系管理员。');
   assert.equal(window.AppText.error('Failed to fetch'),'网络连接暂时不可用，请稍后重试。');
@@ -15,7 +15,7 @@ test('technical failures stay out of user views while administrators can inspect
   assert.equal(window.AppText.term('forced_error'),'受迫失误');
   assert.equal(window.AppText.sequence('My winner'),'本方制胜一击');
   assert.equal(window.AppText.sequence('A1 Serve → B1 Lift'),'A1 发球 → B1 挑球');
-  assert.equal(window.AppText.error('GGAB Traceback frame.py',true),'分析服务 Traceback frame.py');
-  window.GGABUser.role='user';
-  assert.equal(window.AppText.error('GGAB Traceback frame.py',true),'操作暂未完成，请稍后重试或联系管理员。');
+  assert.equal(window.AppText.error('分析服务 Traceback frame.py',true),'分析服务 Traceback frame.py');
+  window.YuxuUser.role='user';
+  assert.equal(window.AppText.error('分析服务 Traceback frame.py',true),'操作暂未完成，请稍后重试或联系管理员。');
 });

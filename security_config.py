@@ -17,13 +17,13 @@ def positive_int(name, default):
 
 
 def public_origin():
-    value = os.environ.get("GGAB_PUBLIC_ORIGIN", "").rstrip("/")
+    value = os.environ.get("YUXU_PUBLIC_ORIGIN", "").rstrip("/")
     if not value:
         return ""
     parsed = urlsplit(value)
     if (parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password
             or parsed.path or parsed.query or parsed.fragment):
-        raise RuntimeError("GGAB_PUBLIC_ORIGIN 必须是完整的 HTTPS 网站源，例如 https://videos.example.com")
+        raise RuntimeError("YUXU_PUBLIC_ORIGIN 必须是完整的 HTTPS 网站源，例如 https://videos.example.com")
     return value
 
 

@@ -91,7 +91,7 @@ def test_real_export_removes_black_gaps_and_keeps_color_and_audio(tmp_path,monke
     db=tmp_path/"shots.db";make_db(db);monkeypatch.setattr(server,"DB_PATH",db)
     path=synthetic_video(tmp_path/"match.mp4",audio)
     original_hash=hashlib.sha256(path.read_bytes()).hexdigest()
-    headers={"X-GGAB-Local":"1","Content-Type":"application/octet-stream"}
+    headers={"X-Yuxu-Local":"1","Content-Type":"application/octet-stream"}
     with TestClient(server.app) as client:
         uploaded=client.post("/api/sessions/import?filename=match.mp4",content=path.read_bytes(),headers=headers)
         assert uploaded.status_code==201,uploaded.text
@@ -103,7 +103,7 @@ def test_real_export_removes_black_gaps_and_keeps_color_and_audio(tmp_path,monke
         plan=client.get("/api/matches/match/clip-plan").json()
         assert plan["kept_duration"]==4
         assert client.get("/api/matches/match/clip-plan?game=2").json()["kept_duration"]==2
-        started=client.post("/api/matches/match/clips",json={},headers={"X-GGAB-Local":"1"})
+        started=client.post("/api/matches/match/clips",json={},headers={"X-Yuxu-Local":"1"})
         assert started.status_code==202,started.text
         job=wait_complete(client,started.json()["id"])
         assert abs(job["output_duration"]-4)<.2
@@ -121,7 +121,7 @@ def test_real_export_removes_black_gaps_and_keeps_color_and_audio(tmp_path,monke
 def test_untagged_session_and_import_validation(tmp_path,monkeypatch):
     db=tmp_path/"shots.db";make_db(db);monkeypatch.setattr(server,"DB_PATH",db)
     path=synthetic_video(tmp_path/"extra.mp4",False)
-    headers={"X-GGAB-Local":"1"}
+    headers={"X-Yuxu-Local":"1"}
     with TestClient(server.app) as client:
         assert client.post("/api/sessions/import?filename=extra.mp4",content=b"x").status_code==403
         assert client.post("/api/sessions/import?filename=extra.mp4",content=b"x",headers={**headers,"Origin":"https://example.com"}).status_code==403
@@ -175,7 +175,7 @@ def test_unregistered_identical_original_in_video_directory_is_linked_without_an
     existing=folder/"existing.mp4";existing.write_bytes(source.read_bytes())
     with TestClient(server.app) as client:
         result=client.post("/api/sessions/import?filename=existing.mp4",content=source.read_bytes(),
-                           headers={"X-GGAB-Local":"1"})
+                           headers={"X-Yuxu-Local":"1"})
     assert result.status_code==201
     assert result.json()["reused_local_file"] is True
     assert vt.registry()[result.json()["match_id"]]["path"]==str(existing.resolve())
@@ -194,9 +194,9 @@ def test_direct_link_from_configured_video_directory_keeps_original_in_place(tmp
                                        "size_bytes":source.stat().st_size}]
     assert client.post('/api/sessions/link',json={"relative_path":"direct.mp4"}).status_code==403
     assert client.post('/api/sessions/link',json={"relative_path":"../outside.mp4"},
-                       headers={"X-GGAB-Local":"1"}).status_code==422
+                       headers={"X-Yuxu-Local":"1"}).status_code==422
     linked=client.post('/api/sessions/link',json={"relative_path":"direct.mp4"},
-                       headers={"X-GGAB-Local":"1"})
+                       headers={"X-Yuxu-Local":"1"})
     assert linked.status_code==200
     sid=linked.json()["match_id"]
     assert linked.json()["reused_local_file"] is True
@@ -206,12 +206,12 @@ def test_direct_link_from_configured_video_directory_keeps_original_in_place(tmp
     assert hashlib.sha256(source.read_bytes()).hexdigest()==original_hash
     # Even the file-picker fallback finds the disk original by content.
     selected=client.post('/api/sessions/import?filename=direct.mp4',content=source.read_bytes(),
-                         headers={"X-GGAB-Local":"1"})
+                         headers={"X-Yuxu-Local":"1"})
     assert selected.status_code==201
     assert selected.json()["reused_local_file"] is True
     assert vt.registry()[sid]["path"]==str(source.resolve())
     assert list((root/"originals").iterdir())==[]
-    removed=client.delete('/api/sessions/'+sid,headers={"X-GGAB-Local":"1"})
+    removed=client.delete('/api/sessions/'+sid,headers={"X-Yuxu-Local":"1"})
     assert removed.status_code==200
     assert removed.json()["video_retained"] is True
     assert source.is_file()
@@ -226,7 +226,7 @@ def test_link_same_video_rebinds_path_then_reclaims_uuid_copy(tmp_path, monkeypa
     before=vt.register(sid,duplicate,named.name,vt.probe(duplicate))
     client=TestClient(server.app)
     linked=client.post("/api/sessions/link",json={"relative_path":"originals/lim.mp4"},
-                       headers={"X-GGAB-Local":"1"})
+                       headers={"X-Yuxu-Local":"1"})
     assert linked.status_code==200,linked.text
     assert linked.json()["match_id"]==sid
     after=vt.registry()[sid]
@@ -235,13 +235,13 @@ def test_link_same_video_rebinds_path_then_reclaims_uuid_copy(tmp_path, monkeypa
     assert duplicate.is_file()
     assert "originals/lim.mp4" not in [v["relative_path"] for v in
         client.get("/api/sessions/local-videos").json()["videos"]]
-    reclaimed=client.post(f"/api/sessions/{sid}/reclaim-duplicate",headers={"X-GGAB-Local":"1"})
+    reclaimed=client.post(f"/api/sessions/{sid}/reclaim-duplicate",headers={"X-Yuxu-Local":"1"})
     assert reclaimed.status_code==200,reclaimed.text
     assert reclaimed.json()["released_bytes"]==named.stat().st_size
     assert named.is_file() and not duplicate.exists()
     assert vt.registry()[sid]["path"]==str(named.resolve())
     assert vt.registry()[sid]["updated_at"]==before["updated_at"]
-    assert client.post(f"/api/sessions/{sid}/reclaim-duplicate",headers={"X-GGAB-Local":"1"}).status_code==409
+    assert client.post(f"/api/sessions/{sid}/reclaim-duplicate",headers={"X-Yuxu-Local":"1"}).status_code==409
 
 
 def test_reclaim_rebinds_registered_uuid_and_protects_tracker_project(tmp_path, monkeypatch):
@@ -252,18 +252,11 @@ def test_reclaim_rebinds_registered_uuid_and_protects_tracker_project(tmp_path, 
     sid="video-lim";before=vt.register(sid,duplicate,named.name,{"duration":10,"has_audio":False})
     with tk.database() as conn:
         conn.execute("INSERT INTO projects VALUES (?,?,?)",("project-lim",json.dumps({"session_id":sid}),vt.now()))
-        conn.execute("INSERT INTO migration_workflows VALUES (?,?,?,?,?)",
-                     ("project-lim","upload_video","{}",0,vt.now()))
     client=TestClient(server.app)
-    headers={"X-GGAB-Local":"1"}
+    headers={"X-Yuxu-Local":"1"}
     match=next(item for item in client.get("/api/matches").json() if item["match_id"]==sid)
     assert match["can_delete"] is False
     assert client.delete(f"/api/sessions/{sid}",headers=headers).status_code==409
-    blocked=client.post(f"/api/sessions/{sid}/reclaim-duplicate",headers=headers)
-    assert blocked.status_code==409
-    assert duplicate.is_file() and vt.registry()[sid]["path"]==str(duplicate.resolve())
-    with tk.database() as conn:
-        conn.execute("UPDATE migration_workflows SET stage='complete' WHERE project_id='project-lim'")
     done=client.post(f"/api/sessions/{sid}/reclaim-duplicate",headers=headers)
     assert done.status_code==200,done.text
     assert done.json()["rebound"] is True
@@ -280,7 +273,7 @@ def test_reclaim_requires_exact_unique_bytes_and_no_shared_source(tmp_path, monk
     duplicate=root/("c"*32+".mp4");duplicate.write_bytes(b"abcd")
     named=root/"lim.mp4";named.write_bytes(b"abce")
     sid="video-lim";vt.register(sid,duplicate,named.name,{"duration":10,"has_audio":False})
-    client=TestClient(server.app);headers={"X-GGAB-Local":"1"}
+    client=TestClient(server.app);headers={"X-Yuxu-Local":"1"}
     assert client.post(f"/api/sessions/{sid}/reclaim-duplicate",headers=headers).status_code==409
     assert duplicate.read_bytes()==b"abcd" and named.read_bytes()==b"abce"
     named.write_bytes(b"abcd")

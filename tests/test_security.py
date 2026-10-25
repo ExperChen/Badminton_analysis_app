@@ -15,7 +15,7 @@ from test_accounts import environment, post, PASSWORD
 
 
 def test_registration_closed_and_only_admin_can_invite(environment, monkeypatch):
-    monkeypatch.setenv("GGAB_SELF_REGISTRATION", "0")
+    monkeypatch.setenv("YUXU_SELF_REGISTRATION", "0")
     admin, alice, _, guest = environment["clients"]
     monkeypatch.setattr(accounts, "hash_password", lambda _: pytest.fail("closed registration must not hash"))
     assert post(guest, "/api/auth/register", {"email": "intruder@example.test", "password": PASSWORD}).status_code == 403
@@ -65,7 +65,7 @@ def test_login_throttles_account_across_addresses_and_persists(environment):
 def test_auth_body_limits_and_headers_apply_to_rejections(environment):
     guest = environment["clients"][-1]
     for body in (b"x" * 16385, iter([b"x" * 8000, b"y" * 9000])):
-        response = guest.post("/api/auth/login", content=body, headers={"X-GGAB-Local": "1"})
+        response = guest.post("/api/auth/login", content=body, headers={"X-Yuxu-Local": "1"})
         assert response.status_code == 413
         assert response.headers["x-content-type-options"] == "nosniff"
         assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
@@ -75,21 +75,21 @@ def test_auth_body_limits_and_headers_apply_to_rejections(environment):
 
 
 def test_https_cookie_origin_and_local_bootstrap(environment, monkeypatch):
-    monkeypatch.setenv("GGAB_PUBLIC_ORIGIN", "https://video.example.test")
+    monkeypatch.setenv("YUXU_PUBLIC_ORIGIN", "https://video.example.test")
     with TestClient(server.app, base_url="https://video.example.test", client=("192.0.2.8", 1)) as client:
         login = post(client, "/api/auth/login", {"email": "alice@example.test", "password": PASSWORD})
         assert login.status_code == 200, login.text
         assert "Secure" in login.headers["set-cookie"] and "HttpOnly" in login.headers["set-cookie"]
         assert login.headers["strict-transport-security"] == "max-age=31536000"
         bad_origin = client.post("/api/auth/login", json={"email": "alice@example.test", "password": PASSWORD},
-                                 headers={"X-GGAB-Local": "1", "Origin": "http://video.example.test"})
+                                 headers={"X-Yuxu-Local": "1", "Origin": "http://video.example.test"})
         assert bad_origin.status_code == 403
     with TestClient(server.app, base_url="http://video.example.test") as client:
         assert client.get("/health").status_code == 403
     with TestClient(server.app, base_url="https://other.example.test") as client:
         assert client.get("/health").status_code == 403
     with pytest.raises(RuntimeError):
-        monkeypatch.setenv("GGAB_PUBLIC_ORIGIN", "http://unsafe.example.test")
+        monkeypatch.setenv("YUXU_PUBLIC_ORIGIN", "http://unsafe.example.test")
         security_config.public_origin()
 
 
@@ -101,8 +101,8 @@ def test_bootstrap_cannot_be_taken_over_remotely(tmp_path, monkeypatch):
 
 
 def test_private_proxy_requires_vpn_identity_and_preserves_local_extension_login(environment, monkeypatch):
-    monkeypatch.setenv("GGAB_PUBLIC_ORIGIN", "https://video.example.test")
-    monkeypatch.setenv("GGAB_REQUIRE_VPN_IDENTITY", "1")
+    monkeypatch.setenv("YUXU_PUBLIC_ORIGIN", "https://video.example.test")
+    monkeypatch.setenv("YUXU_REQUIRE_VPN_IDENTITY", "1")
     with TestClient(server.app, base_url="https://video.example.test") as client:
         assert client.get("/health").status_code == 403
         client.headers["Tailscale-User-Login"] = "vpn@example.test"
@@ -166,7 +166,7 @@ def test_upload_api_enforces_budget_and_blocks_legacy_bypass(environment, monkey
     assert state.status_code == 201
     assert post(alice, "/api/uploads", {"filename": "allowed.mp4", "size_bytes": 4, "request_id": "a" * 32}).json() == state.json()
     assert alice.get("/api/uploads/limits").json()["used_daily_files"] == 1
-    assert alice.post("/api/sessions/import?filename=legacy.mp4", content=b"12345", headers={"X-GGAB-Local": "1"}).status_code == 409
+    assert alice.post("/api/sessions/import?filename=legacy.mp4", content=b"12345", headers={"X-Yuxu-Local": "1"}).status_code == 409
     assert alice.get("/api/admin/upload-limits").status_code == 403
     assert environment["clients"][-1].get("/api/uploads/limits").status_code == 401
 
@@ -175,7 +175,7 @@ def test_drive_cancel_keeps_capacity_reservation(environment, monkeypatch):
     import video_uploads
     owner = environment["identities"][1]
     small_policy(monkeypatch, capacity=100)
-    monkeypatch.setenv("GGAB_UPLOAD_STORAGE", "google_drive")
+    monkeypatch.setenv("YUXU_UPLOAD_STORAGE", "google_drive")
     monkeypatch.setattr(video_uploads.drive_storage, "configuration", lambda: {})
     monkeypatch.setattr(video_uploads.drive_storage, "begin", lambda _: "https://www.googleapis.com/mock")
     context = accounts.principal.set(owner)

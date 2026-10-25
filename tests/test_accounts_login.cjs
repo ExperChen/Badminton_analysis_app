@@ -7,7 +7,7 @@ test('successful login for each role goes to Match Breakdown in the same account
     const nodes={},redirects=[],base='/s/'+'a'.repeat(32);
     const get=id=>nodes[id]??=( {value:id==='email'?'test@example.test':'test-password-2026',hidden:false,disabled:false});
     vm.runInNewContext(fs.readFileSync(__dirname+'/../static/accounts-login.js','utf8'),{
-      window:{GGABPath:url=>base+url},location:{replace:url=>redirects.push(url)},
+      window:{YuxuPath:url=>base+url},location:{replace:url=>redirects.push(url)},
       document:{getElementById:get,querySelectorAll:()=>[],querySelector:()=>null},
       fetch:async(url)=>({ok:true,json:async()=>url.endsWith('/status')?{initialized:true}:{role}})
     });
@@ -22,7 +22,7 @@ test('registration confirms password and only submits ordinary credentials in it
   const get=id=>nodes[id]??={value:id==='email'?'new@example.test':'test-password-2026',hidden:false,disabled:false};
   const buttons=['login','register','reset'].map(mode=>({dataset:{mode},hidden:mode==='register'}));
   vm.runInNewContext(fs.readFileSync(__dirname+'/../static/accounts-login.js','utf8'),{
-    window:{GGABPath:url=>base+url},location:{replace:url=>redirects.push(url)},
+    window:{YuxuPath:url=>base+url},location:{replace:url=>redirects.push(url)},
     document:{getElementById:get,querySelectorAll:()=>buttons,querySelector:selector=>selector.includes('data-mode')?buttons[1]:get('email-label')},
     fetch:async(url,options={})=>{calls.push({url,options});return {ok:true,json:async()=>url.endsWith('/status')?{initialized:true,registration_open:true}:{role:'user'}};}
   });

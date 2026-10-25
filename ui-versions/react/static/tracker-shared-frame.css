@@ -5,7 +5,7 @@
 #player-boxes .player-outline[data-slot="A2"]{--box-color:#ffbe39;--box-fill:#ffbe392b}
 #player-boxes .player-outline[data-slot="B2"]{--box-color:#aa78ff;--box-fill:#aa78ff2b}
 #player-boxes .player-outline.is-active rect{stroke-width:4}
-#player-tabs [data-player="A1"]{border-left:4px solid #ded0ef}
-#player-tabs [data-player="B1"]{border-left:4px solid #c7e5df}
-#player-tabs [data-player="A2"]{border-left:4px solid #eddcbd}
-#player-tabs [data-player="B2"]{border-left:4px solid #ded0ef}
+#player-tabs [data-player="A1"]{border-left:4px solid #ff3459}
+#player-tabs [data-player="B1"]{border-left:4px solid #34b9ff}
+#player-tabs [data-player="A2"]{border-left:4px solid #ffbe39}
+#player-tabs [data-player="B2"]{border-left:4px solid #aa78ff}

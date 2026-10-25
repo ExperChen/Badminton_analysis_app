@@ -28,7 +28,7 @@ FINISHING = {}
 
 
 def storage_mode():
-    mode = os.environ.get("GGAB_UPLOAD_STORAGE", "local")
+    mode = os.environ.get("YUXU_UPLOAD_STORAGE", "google_drive")
     if mode not in {"local", "google_drive"}:
         raise HTTPException(503, "视频存储配置无效")
     return mode

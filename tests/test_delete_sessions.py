@@ -20,7 +20,7 @@ def test_delete_only_unmatched_and_keep_recoverable_video(tmp_path, monkeypatch)
         path.write_bytes(b"test-video")
         vt.register(sid, path, path.name, {"duration": 10, "has_audio": False})
     client = TestClient(server.app)
-    headers = {"X-GGAB-Local": "1"}
+    headers = {"X-Yuxu-Local": "1"}
     assert client.delete("/api/sessions/unmatched").status_code == 403
     assert client.delete("/api/sessions/tagged", headers=headers).status_code == 409
     assert client.delete("/api/sessions/unmatched", headers=headers).status_code == 200
@@ -48,7 +48,7 @@ def test_shared_original_remains_until_last_session_is_removed(tmp_path, monkeyp
     for sid in ("first", "second"):
         vt.register(sid, original, "shared.mp4", {"duration": 10, "has_audio": False})
     client = TestClient(server.app)
-    headers = {"X-GGAB-Local": "1"}
+    headers = {"X-Yuxu-Local": "1"}
     first = client.delete("/api/sessions/first", headers=headers)
     assert first.status_code == 200
     assert first.json()["video_retained"] is True

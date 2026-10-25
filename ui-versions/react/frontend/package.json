@@ -1,10 +1,11 @@
 {
-  "name": "badminton-analysis-ui",
+  "name": "yuxu-purple-react-preview",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "vite build"
+    "build": "vite build",
+    "test:ui": "playwright test"
   },
   "dependencies": {
     "@gsap/react": "2.1.2",

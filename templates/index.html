@@ -13,8 +13,6 @@
   <script defer src="/static/video-upload.js?v=20261009-zh"></script>
   <script defer src="/static/media.js?v=20261009-zh"></script>
   <script defer src="/static/playback-preview.js?v=20261009-zh"></script>
-  <link rel="stylesheet" href="/static/token-overview.css?v=20261009-zh">
-  <script defer src="/static/token-overview.js?v=20261009-zh"></script>
 </head>
 <body>
 <a class="skip" href="#main">跳到比赛分析</a>
@@ -37,15 +35,6 @@
   <header class="topbar"><button class="circle" id="nav-toggle" aria-label="收起或展开导航" aria-expanded="true">◧</button><div class="top-title">羽球分析 <span>／ 比赛分析</span></div><div class="profile"><span class="avatar">羽</span><span>我的账号</span><small>本地</small></div></header>
   <main id="main">
     <div class="page-heading"><div><p class="eyebrow">比赛数据分析</p><h1>比赛分析</h1><p class="description">按比赛、局数和观察方查看技术统计与回合回放。</p></div><button class="help-button" id="help">ⓘ 使用说明</button></div>
-    <section class="panel token-overview" id="token-overview" hidden aria-label="分析额度概览">
-      <div class="panel-heading"><h3 id="token-overview-title">分析额度</h3><a href="/account" id="token-overview-link">查看额度与流水 →</a></div>
-      <p id="token-overview-values">正在读取…</p><p id="token-overview-status" class="section-note" role="status"></p>
-      <div class="mini-token-grid">
-        <article class="mini-token-stat"><span id="mini-token-label-0">额度</span><strong id="mini-token-value-0">—</strong><small id="mini-token-note-0">分析额度</small></article>
-        <article class="mini-token-stat"><span id="mini-token-label-1">已结算消耗</span><strong id="mini-token-value-1">—</strong><small id="mini-token-note-1">分析额度 · 真实费用</small></article>
-        <article class="mini-token-stat"><span id="mini-token-label-2">预留额度</span><strong id="mini-token-value-2">—</strong><small id="mini-token-note-2">分析额度 · 尚未扣款</small></article>
-      </div>
-    </section>
     <section class="panel controls">
       <div class="session-heading"><div><p class="eyebrow">比赛分析</p><h2 id="match-title">加载比赛…</h2></div><div class="actions"><span class="pill" id="session-count">一场比赛</span><button id="refresh">↻ <span>刷新</span></button><button class="primary" id="filter-toggle" aria-expanded="true" aria-controls="filters">☷ <span>收起筛选</span></button></div></div>
       <div class="filters" id="filters"><div><label>模式</label><div class="segmented"><button class="selected" data-mode="single" aria-pressed="true">单场</button><button data-mode="compare" aria-pressed="false">对比</button></div></div><div class="session-select"><label for="match">比赛</label><select id="match" disabled><option>正在读取…</option></select></div><div><label for="game">局数</label><select id="game"><option value="">全部局数</option></select></div><div><label for="perspective">观察方</label><select id="perspective"><option value="you">我方</option><option value="opponent">对方</option></select></div><div id="compare-control" class="session-select" hidden><label for="compare-match">对比比赛</label><select id="compare-match"></select></div></div>

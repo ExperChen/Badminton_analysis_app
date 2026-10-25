@@ -27,12 +27,12 @@
     }
   }
   const jsonOptions = body => ({method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
-  window.GGABUploadVideo = async (file, {sessionId = null, onProgress = () => {}} = {}) => {
+  window.YuxuUploadVideo = async (file, {sessionId = null, onProgress = () => {}} = {}) => {
     if (!file.size || file.size > 50 * 1024 ** 3) throw new Error('请选择大于 0 且不超过 50 GB 的视频');
-    const user = window.GGABAuthReady ? await window.GGABAuthReady : {id: 'local'};
+    const user = window.YuxuAuthReady ? await window.YuxuAuthReady : {id: 'local'};
     const fingerprint = await hash(new Blob([file.slice(0, 65536), file.slice(Math.max(0, file.size - 65536)),
                                              JSON.stringify([file.name, file.size, file.lastModified])]));
-    const key = 'ggab-upload:' + JSON.stringify([user.id, sessionId, fingerprint]);
+    const key = 'yuxu-upload:' + JSON.stringify([user.id, sessionId, fingerprint]);
     let saved = storage.get(key), state;
     if (saved?.upload_id) {
       try { state = await request('/api/uploads/' + saved.upload_id); }

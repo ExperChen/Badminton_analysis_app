@@ -17,7 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_MEDIA_ROOT = ROOT / "media"
-MEDIA_ROOT = Path(os.environ.get("GGAB_MEDIA_ROOT", DEFAULT_MEDIA_ROOT)).resolve()
+MEDIA_ROOT = Path(os.environ.get("YUXU_MEDIA_ROOT", DEFAULT_MEDIA_ROOT)).resolve()
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"}
 LOCK = threading.RLock()
 POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix="rally-export")
@@ -327,7 +327,7 @@ def remove_unmatched_session(session_id):
 
 
 def binary(name):
-    found = os.environ.get("GGAB_" + name.upper()) or shutil.which(name)
+    found = os.environ.get("YUXU_" + name.upper()) or shutil.which(name)
     if not found:
         raise ValueError(f"未找到 {name}，请安装 FFmpeg 并加入 PATH。")
     return found

@@ -1,4 +1,4 @@
-"""Local identities and durable resource ownership; GGAB remains a shared source."""
+"""Local identities and durable per-account resource ownership."""
 import hashlib
 import os
 import re
@@ -21,8 +21,8 @@ router = APIRouter()
 ENFORCE_AUTH = True
 principal = ContextVar("local_principal", default=None)
 PASSWORDS = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=1)
-COOKIE = "ggab_local_session"
-SCOPED_COOKIE = "ggab_tab_session"
+COOKIE = "yuxu_local_session"
+SCOPED_COOKIE = "yuxu_tab_session"
 SESSION_SECONDS = 12 * 3600
 PASSWORD_WORK = threading.BoundedSemaphore(2)
 DUMMY_PASSWORD = PASSWORDS.hash(secrets.token_urlsafe(32))
@@ -134,7 +134,7 @@ def claim(kind, resource_id, user_id=None):
         conn.execute("INSERT OR IGNORE INTO ownership(kind,resource_id,user_id) VALUES(?,?,?)", (kind, resource_id, user_id))
 
 
-def bind_match(remote_id, project_id):
+def bind_match(match_id, project_id):
     if not ENFORCE_AUTH:
         return
     with database() as conn:
@@ -142,14 +142,14 @@ def bind_match(remote_id, project_id):
         record = conn.execute("SELECT user_id,hidden FROM ownership WHERE kind='project' AND resource_id=?", (project_id,)).fetchone()
         if not record:
             return
-        old = conn.execute("SELECT user_id FROM ownership WHERE kind='match' AND resource_id=?", (remote_id,)).fetchone()
-        previous = conn.execute("SELECT project_id FROM match_bindings WHERE match_id=?", (remote_id,)).fetchone()
+        old = conn.execute("SELECT user_id FROM ownership WHERE kind='match' AND resource_id=?", (match_id,)).fetchone()
+        previous = conn.execute("SELECT project_id FROM match_bindings WHERE match_id=?", (match_id,)).fetchone()
         if (old and old[0] != record[0]) or (previous and previous[0] != project_id):
-            raise HTTPException(409, "远端比赛归属冲突")
-        conn.execute("INSERT OR IGNORE INTO ownership VALUES('match',?,?,?)", (remote_id, record[0], record[1]))
+            raise HTTPException(409, "比赛归属冲突")
+        conn.execute("INSERT OR IGNORE INTO ownership VALUES('match',?,?,?)", (match_id, record[0], record[1]))
         if record[1]:
-            conn.execute("UPDATE ownership SET hidden=1 WHERE kind='match' AND resource_id=?", (remote_id,))
-        conn.execute("INSERT OR IGNORE INTO match_bindings VALUES(?,?)", (remote_id, project_id))
+            conn.execute("UPDATE ownership SET hidden=1 WHERE kind='match' AND resource_id=?", (match_id,))
+        conn.execute("INSERT OR IGNORE INTO match_bindings VALUES(?,?)", (match_id, project_id))
 
 
 def hide_project_matches(project_id):
@@ -158,32 +158,11 @@ def hide_project_matches(project_id):
             conn.execute("UPDATE ownership SET hidden=1 WHERE kind='match' AND resource_id IN (SELECT match_id FROM match_bindings WHERE project_id=?)", (project_id,))
 
 
-def task_enabled(project_id):
-    if not ENFORCE_AUTH:
-        return True
-    with database() as conn:
-        return bool(conn.execute("SELECT 1 FROM ownership o JOIN users u ON u.id=o.user_id WHERE o.kind='project' AND o.resource_id=? AND o.hidden=0 AND u.enabled=1", (project_id,)).fetchone())
-
-
 def hide(kind, resource_id):
     if not ENFORCE_AUTH:
         return
     with database() as conn:
         conn.execute("UPDATE ownership SET hidden=1 WHERE kind=? AND resource_id=?", (kind, resource_id))
-
-
-def source_subject():
-    with database() as conn:
-        row = conn.execute("SELECT value FROM settings WHERE key='ggab_subject'").fetchone()
-    return row[0] if row else None
-
-
-def check_source(subject):
-    if not ENFORCE_AUTH:
-        return
-    expected = source_subject()
-    if not expected or not subject or expected != subject:
-        raise HTTPException(409, "GGAB 身份未核验或已切换，请管理员重新连接正确账号")
 
 
 def authenticate(request):
@@ -250,11 +229,11 @@ def registration_admin(conn):
 
 
 def registration_scope(request):
-    if os.environ.get("GGAB_SELF_REGISTRATION", "1") != "1":
+    if os.environ.get("YUXU_SELF_REGISTRATION", "1") != "1":
         return False
     if request.url.hostname in security_config.LOCAL_HOSTS:
         return bool(request.client and request.client.host in {"127.0.0.1", "::1"})
-    return (os.environ.get("GGAB_REQUIRE_VPN_IDENTITY") == "1"
+    return (os.environ.get("YUXU_REQUIRE_VPN_IDENTITY") == "1"
             and f"{request.url.scheme}://{request.url.netloc}" == security_config.public_origin()
             and request.url.scheme == "https" and bool(request.headers.get("tailscale-user-login")))
 
@@ -442,22 +421,14 @@ def uploads_by_account():
     unassigned_videos = []
     projects_by_session = {}
     with tracker.database() as conn:
-        rows = conn.execute(
-            "SELECT p.id,p.payload,m.payload AS migration_payload,w.stage "
-            "FROM projects p LEFT JOIN migration_links m ON m.project_id=p.id "
-            "LEFT JOIN migration_workflows w ON w.project_id=p.id ORDER BY p.updated_at DESC,p.id"
-        ).fetchall()
+        rows = conn.execute("SELECT id,payload FROM projects ORDER BY updated_at DESC,id").fetchall()
     for row in rows:
         project_owner = ownership.get(("project", row["id"]))
         if project_owner and project_owner["hidden"]:
             continue
         project = json.loads(row["payload"])
-        migration = json.loads(row["migration_payload"]) if row["migration_payload"] else {}
         projects_by_session.setdefault(project["session_id"], []).append({
             "id": row["id"], "title": project.get("title", row["id"]),
-            "workflow_stage": row["stage"], "migration_status": migration.get("status"),
-            "remote_match_id": migration.get("remote_project_id")
-            if migration.get("association", {}).get("verified") else None,
         })
 
     # A shared physical file is still one logical upload per owning account.
@@ -574,16 +545,12 @@ def assign_owner(kind: str, resource_id: str, body: AssignOwner):
         saved = tracker.project(resource_id)
         linked.append(("session", saved["session_id"]))
         linked.extend(("snapshot", p["snapshot_id"]) for p in saved.get("players", []))
-        with tracker.database() as conn:
-            row = conn.execute("SELECT payload FROM migration_links WHERE project_id=?", (resource_id,)).fetchone()
-        if row:
-            import json
-            migration = json.loads(row[0])
-            if migration.get("association", {}).get("verified"):
-                linked.append(("match", migration["remote_project_id"]))
+        import local_data
+        linked.extend(("match", mid) for mid, pid in local_data.project_matches(DB_PATH).items()
+                      if pid == resource_id)
     elif kind == "match":
-        import full_csv_sync
-        session = full_csv_sync.aliases(DB_PATH).get(resource_id)
+        import local_data
+        session = local_data.aliases(DB_PATH).get(resource_id)
         if session:
             linked.append(("session", session))
     with database() as conn:

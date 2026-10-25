@@ -20,7 +20,7 @@ def initialize(database):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--database', type=Path,
-                        default=Path(os.environ.get('GGAB_DB_PATH', ROOT / 'ggab.db')))
+                        default=Path(os.environ.get('YUXU_DB_PATH', ROOT / 'ggab.db')))
     args = parser.parse_args()
     created = initialize(args.database)
     print(('Created empty database: ' if created else 'Existing database unchanged: ') + str(args.database.resolve()))

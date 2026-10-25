@@ -54,7 +54,7 @@
     player.pause();
     videoURL = usePreview ? `${previewUrl(id)}/video` :
       `/api/matches/${encodeURIComponent(id)}/video?v=${encodeURIComponent(data.video.updated_at)}`;
-    player.src = window.GGABPath(videoURL);
+    player.src = window.YuxuPath(videoURL);
     player.addEventListener("loadedmetadata", () => {
       if (matchId !== id) return;
       player.currentTime = Math.min(position, Math.max(0, player.duration - .05));
@@ -78,7 +78,7 @@
     activateWhenReady = true;
     status.textContent = "正在启动预览生成…";
     try {
-      const response = await fetch(previewUrl(matchId), {method:"POST", headers:{"X-GGAB-Local":"1"}});
+      const response = await fetch(previewUrl(matchId), {method:"POST", headers:{"X-Yuxu-Local":"1"}});
       const result = await response.json();
       if (!response.ok) throw new Error(result.detail || "无法启动预览生成");
       render(result);
@@ -90,19 +90,19 @@
     } catch (error) {activateWhenReady = false;render({state:"failed", error:error.message});}
   });
 
-  document.addEventListener("ggab:loading", () => {
+  document.addEventListener("yuxu:loading", () => {
     clearTimeout(poll);
     requestId++;
     activateWhenReady = false;
     matchId = null;
     panel.hidden = true;
   });
-  document.addEventListener("ggab:match-loaded", () => {
+  document.addEventListener("yuxu:match-loaded", () => {
     matchId = data?.video && !pendingVideo ? data.match_id : null;
     panel.hidden = !matchId;
     if (matchId) refresh(matchId);
   });
-  document.addEventListener("ggab:video-selected", () => {
+  document.addEventListener("yuxu:video-selected", () => {
     clearTimeout(poll);
     activateWhenReady = false;
     matchId = null;

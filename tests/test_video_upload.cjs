@@ -13,7 +13,7 @@ function video(bytes, name = 'match.mp4') {
 function client({size = 4, storage = new Map(), failAt = null} = {}) {
   const states = new Map(), puts = [], requests = [];
   let serial = 0, broken = failAt;
-  const window = {GGABAuthReady: Promise.resolve({id: 'alice'})};
+  const window = {YuxuAuthReady: Promise.resolve({id: 'alice'})};
   const response = (body, status = 200) => ({ok: status < 300, status, json: async () => structuredClone(body)});
   const fetch = async (url, options = {}) => {
     requests.push([url, options]);
@@ -46,7 +46,7 @@ function client({size = 4, storage = new Map(), failAt = null} = {}) {
 }
 test('uploads bounded chunks and persists a resumable request scoped to the account', async () => {
   const c = client(), progress = [];
-  const result = await c.window.GGABUploadVideo(video('abcdefghij'), {sessionId: 'mine', onProgress: event => progress.push(event)});
+  const result = await c.window.YuxuUploadVideo(video('abcdefghij'), {sessionId: 'mine', onProgress: event => progress.push(event)});
   assert.deepEqual(c.puts, [0, 4, 8]);
   assert.equal(result.storage, 'google_drive');
   const init = JSON.parse(c.requests[0][1].body);
@@ -55,19 +55,19 @@ test('uploads bounded chunks and persists a resumable request scoped to the acco
 });
 test('after a failed transfer it verifies saved chunks and resumes from the server offset', async () => {
   const c = client({failAt: 4}), file = video('abcdefghij');
-  await assert.rejects(c.window.GGABUploadVideo(file), /offline/);
+  await assert.rejects(c.window.YuxuUploadVideo(file), /offline/);
   assert.deepEqual(c.puts, [0]); assert.equal(c.storage.size, 1);
   c.resume();
-  await c.window.GGABUploadVideo(file);
+  await c.window.YuxuUploadVideo(file);
   assert.deepEqual(c.puts, [0, 4, 8]);
   assert.equal(c.states.size, 1); assert.equal(c.storage.size, 0);
 });
 test('same filename size timestamp and edge samples cannot splice a different middle into an upload', async () => {
   const c = client({size: 65536, failAt: 131072});
   const bytes = Buffer.alloc(262144, 'a'), file = video(bytes);
-  await assert.rejects(c.window.GGABUploadVideo(file), /offline/);
+  await assert.rejects(c.window.YuxuUploadVideo(file), /offline/);
   const changed = Buffer.from(bytes); changed[70000] = 98;
   c.resume();
-  await assert.rejects(c.window.GGABUploadVideo(video(changed)), /已上传片段不一致/);
+  await assert.rejects(c.window.YuxuUploadVideo(video(changed)), /已上传片段不一致/);
   assert.deepEqual(c.puts, [0, 65536]);
 });

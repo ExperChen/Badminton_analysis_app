@@ -1,59 +1,46 @@
-import json
+"""The standalone app exposes local resources, never a remote executor or billing API."""
+import sys
+import sqlite3
 import pytest
-import cost_estimation
-import bridge
-from test_accounts import environment
+from fastapi.testclient import TestClient
+import app as server
+import tracker
+import local_data
+from test_accounts import environment, post
 
-EXPORT_PATHS = [
-    '/api/my/export.csv', '/api/bridge/full-export.csv',
-    '/api/matches/A/export?game=1', '/api/bridge/projects/project-A/shots.csv',
-]
+@pytest.mark.parametrize("url", ["/api/my/export.csv", "/api/matches/A/export"])
+def test_csv_download_stays_disabled(environment,url):
+    for client in environment["clients"][:3]:
+        assert client.get(url).status_code == 403
 
-@pytest.mark.parametrize('path', EXPORT_PATHS)
-def test_csv_downloads_are_disabled_for_all_roles_and_scoped_routes(environment, path):
-    for client in environment['clients'][:3]:
-        for method in ('get', 'head'):
-            response = getattr(client, method)(path)
-            assert response.status_code == 403
-            assert 'text/csv' not in response.headers.get('content-type', '')
-            assert 'content-disposition' not in response.headers
-    # Scope path cannot bypass the centralized policy.
-    guest = environment['clients'][3]
-    from test_accounts import post, PASSWORD
-    prefix = '/s/' + 'e' * 32
-    assert post(guest, prefix + '/api/auth/login', {'email':'alice@example.test', 'password':PASSWORD}).status_code == 200
-    assert guest.get(prefix + path).status_code == 403
+@pytest.mark.parametrize("url", ["/api/bridge/status", "/api/bridge/worker/claim", "/api/tokens/me",
+                                  "/api/admin/tokens", "/account/tokens",
+                                  "/api/tracker/projects/project-A/handoff",
+                                  "/api/tracker/projects/project-A/cost-history",
+                                  "/api/tracker/projects/project-A/migration"])
+def test_removed_endpoints_do_not_exist(environment,url):
+    admin=environment["clients"][0]
+    assert admin.get(url).status_code == 404
 
+def test_local_runtime_has_no_remote_modules():
+    assert not {"bridge","cost_estimation","token_wallet","full_csv_sync"} & sys.modules.keys()
 
-def test_forecast_stays_private_and_does_not_trigger_recharge_without_official_quote(environment, monkeypatch):
-    monkeypatch.setattr(cost_estimation, 'backfill', lambda conn: None)
-    monkeypatch.setattr(cost_estimation, 'summary', lambda *args: {'id':'forecast', 'tokens':999999})
-    with bridge.db() as conn:
-        conn.execute('INSERT INTO migration_workflows VALUES(?,?,?,?,?)', (
-            'project-A', 'review_project', json.dumps({'error':'SHA-256 mismatch D:/original.mp4', 'source':'debug'}), 0, 'now'))
-    admin, alice = environment['clients'][:2]
-    project = alice.get('/api/tracker/projects').json()[0]
-    assert 'cost_prediction' not in project
-    assert not project['quota']['needs_recharge']
-    flow = alice.get('/api/bridge/status').json()['workflows'][0]
-    assert flow['estimated_cost'] is None
-    assert not flow['quota']['needs_recharge']
-    assert not flow['confirmation_ready']
-    assert 'cost_prediction' not in flow and 'source' not in flow and 'exported_csv' not in flow
-    assert 'SHA-256' not in flow['error']
-    diagnostic = admin.get('/api/bridge/status').json()['workflows'][0]
-    assert diagnostic['cost_prediction']['tokens'] == 999999
-    assert 'SHA-256' in diagnostic['error']
-    assert alice.get('/api/tracker/projects/project-A/cost-history').status_code == 403
-    assert alice.get('/api/tracker/projects/project-A/handoff.zip').status_code == 403
-    assert alice.get('/api/admin/logs').status_code == 403
-    assert admin.get('/api/admin/logs').status_code == 200
+def test_tracker_database_does_not_create_remote_jobs():
+    with tracker.database() as conn:
+        tables={r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert {"projects","snapshots","saved_player_names"} <= tables
+    assert not {"migration_links","migration_workflows","token_holds","cost_quotes"} & tables
 
-
-@pytest.mark.parametrize('path', ['/docs', '/redoc', '/openapi.json'])
-def test_api_diagnostics_are_admin_only(environment, path):
-    admin, alice, bob, guest = environment['clients']
-    assert admin.get(path).status_code == 200
-    assert alice.get(path).status_code == 403
-    assert bob.get(path).status_code == 403
-    assert guest.get(path, follow_redirects=False).status_code in (303,401)
+def test_local_bindings_and_revision_remain_read_only(environment):
+    database=environment["db"]
+    with sqlite3.connect(database) as conn:
+        conn.execute("CREATE TABLE match_video_links(match_id TEXT PRIMARY KEY,session_id TEXT,project_id TEXT)")
+        conn.execute("INSERT INTO match_video_links VALUES ('A','video-A','project-A')")
+        before=conn.execute("SELECT COUNT(*) FROM shots").fetchone()[0]
+    assert local_data.aliases(database)=={"A":"video-A"}
+    assert local_data.project_matches(database)=={"A":"project-A"}
+    alice,bob=environment["clients"][1:3]
+    assert next(p for p in alice.get("/api/tracker/projects").json() if p["id"]=="project-A")["analysis_match_id"]=="A"
+    assert bob.get("/api/matches/A/video").status_code==404
+    with sqlite3.connect(database) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM shots").fetchone()[0]==before

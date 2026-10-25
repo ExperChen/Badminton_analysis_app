@@ -44,7 +44,7 @@ def convert(column, value):
 
 
 def main():
-    files = sys.argv[1:] or sorted(glob.glob(str(BASE_DIR / "ggab-shots-*.csv")))
+    files = sys.argv[1:] or sorted(glob.glob(str(BASE_DIR / "yuxu-shots-*.csv")))
     if not files:
         sys.exit("没有找到 CSV 文件")
 

@@ -9,7 +9,7 @@ import app as server
 from test_accounts import environment, post, PASSWORD
 
 
-def test_register_without_admin_approval_has_zero_quota_and_isolation(environment):
+def test_register_without_admin_approval_preserves_isolation(environment):
     admin, _, _, guest = environment["clients"]
     before = admin.get('/api/me').json()
     assert guest.get('/api/auth/status').json()['registration_open'] is True
@@ -21,8 +21,7 @@ def test_register_without_admin_approval_has_zero_quota_and_isolation(environmen
     assert guest.get('/api/matches').json() == []
     assert guest.get('/api/tracker/player-options').json() == []
     assert guest.get('/api/admin/users').status_code == 403
-    quota = guest.get('/api/tokens/me').json()
-    assert quota['available'] == 0 and quota['transactions'] == [] and 'ggab' not in quota
+    assert guest.get('/api/tokens/me').status_code == 404
     assert user['id'] in {u['id'] for u in admin.get('/api/admin/users').json()}
     assert admin.get('/api/me').json() == before
     with accounts.database() as c:
@@ -55,8 +54,8 @@ def test_register_never_bootstraps_an_administrator(monkeypatch):
 
 
 def test_private_https_signup_uses_secure_scoped_cookie_and_requires_vpn(environment, monkeypatch):
-    monkeypatch.setenv('GGAB_PUBLIC_ORIGIN', 'https://video.example.test')
-    monkeypatch.setenv('GGAB_REQUIRE_VPN_IDENTITY', '1')
+    monkeypatch.setenv('YUXU_PUBLIC_ORIGIN', 'https://video.example.test')
+    monkeypatch.setenv('YUXU_REQUIRE_VPN_IDENTITY', '1')
     client = TestClient(server.app, base_url='https://video.example.test')
     body = {'email': 'vpn@example.test', 'password': PASSWORD}
     assert post(client, '/api/auth/register', body).status_code == 403
@@ -72,10 +71,10 @@ def test_private_https_signup_uses_secure_scoped_cookie_and_requires_vpn(environ
 
 def test_disabled_or_ambiguous_admin_and_opt_out_close_registration(environment, monkeypatch):
     guest = environment['clients'][3]
-    monkeypatch.setenv('GGAB_SELF_REGISTRATION', '0')
+    monkeypatch.setenv('YUXU_SELF_REGISTRATION', '0')
     assert guest.get('/api/auth/status').json()['registration_open'] is False
     assert post(guest, '/api/auth/register', {'email': 'new@example.test', 'password': PASSWORD}).status_code == 403
-    monkeypatch.setenv('GGAB_SELF_REGISTRATION', '1')
+    monkeypatch.setenv('YUXU_SELF_REGISTRATION', '1')
     with accounts.database() as c:
         c.execute("UPDATE users SET enabled=0 WHERE role='admin'")
     assert guest.get('/api/auth/status').json()['registration_open'] is False
@@ -83,8 +82,8 @@ def test_disabled_or_ambiguous_admin_and_opt_out_close_registration(environment,
 
 
 def test_daily_limit_persists_across_clients_and_email_changes(environment, monkeypatch):
-    monkeypatch.setenv('GGAB_PUBLIC_ORIGIN', 'https://video.example.test')
-    monkeypatch.setenv('GGAB_REQUIRE_VPN_IDENTITY', '1')
+    monkeypatch.setenv('YUXU_PUBLIC_ORIGIN', 'https://video.example.test')
+    monkeypatch.setenv('YUXU_REQUIRE_VPN_IDENTITY', '1')
     monkeypatch.setattr(accounts, 'hash_password', lambda _: 'test-only-hash')
     for i in range(6):
         client = TestClient(server.app, base_url='https://video.example.test', client=(f'192.0.2.{i}', 1234))

@@ -130,3 +130,25 @@ def test_empty_database(sample_db):
     with TestClient(server.app) as client:
         assert client.get("/api/matches").json() == []
         assert client.get("/health").json() == {"status":"ok"}
+
+
+def test_reference_match_matches_observed_website():
+    # Independently observed on the reference page, 2026-09-06.
+    rid="6b5209c2-e50c-4626-aa63-c43a4f2bd6e5"
+    if not server.DB_PATH.exists():
+        pytest.skip("Local reference database not available")
+    rows=server.query("SELECT * FROM shots WHERE match_id=? ORDER BY rally_number,shot_number_in_rally", (rid,))
+    if not rows:
+        pytest.skip("Reference match not present")
+    result=analyze(rows)
+    assert result["summary"]["shots"] == 103
+    assert result["summary"]["rallies"] == 23
+    assert (result["summary"]["wins"],result["summary"]["losses"]) == (6,17)
+    assert result["summary"]["avg_shots"] == 4.5
+    assert result["summary"]["avg_duration"] == 7.5
+    assert result["winning"][0]["percent"] == 50.0
+    assert result["losing"][0]["percent"] == 29.4
+    assert result["usage"][0]["percent"] == 32.7
+    assert result["patterns"]["3"]["all"]["eligible"] == 18
+    assert result["patterns"]["5"]["all"]["eligible"] == 11
+    assert len([x for x in result["heights"] if x["player"]=="CHEN P. R."]) == 29

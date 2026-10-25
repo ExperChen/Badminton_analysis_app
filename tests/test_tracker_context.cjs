@@ -11,84 +11,45 @@ function part(start, end) {
   return source.slice(a, b);
 }
 
-function tracker(digit = 'a') {
+function tracker(digit = 'a', analysis = 'match /?') {
   const base = digit ? '/s/' + digit.repeat(32) : '';
   const elements = new Map();
-  const project = {id:'project-one', session_id:'video-local-original', title:'Test match',
-    game_type:'singles', players:[{},{}], migration:{status:'finalized',remote_project_id:'remote-one'}};
+  const project = {id:'project /?', session_id:'video-original', title:'Test match',
+    game_type:'singles', players:[{},{}], analysis_match_id:analysis};
   class XHR {open() {}}
   const context = vm.createContext({URL, XMLHttpRequest:XHR,
     location:{href:'http://127.0.0.1:8000'+base+'/tracker', pathname:base+'/tracker', origin:'http://127.0.0.1:8000'},
-    history:{pushState() {},replaceState() {}}, window:{GGABConfirmation:{status:()=>({}),view:()=>({}),updateStatus() {}},GGABCosts:{render() {},text:()=> '等待服务计算费用'}},
-    document:{dispatchEvent() {}}, Event:class {},
+    history:{pushState() {},replaceState() {}}, window:{},
     el:id=>{
-      if (!elements.has(id)) elements.set(id,{dataset:{},innerHTML:'',pause() {},scrollIntoView() {}});
+      if (!elements.has(id)) elements.set(id,{dataset:{},innerHTML:'',pause() {}});
       return elements.get(id);
     }, esc:value=>String(value).replace(/&/g,'&amp;').replace(/"/g,'&quot;'),
-    migrationLabel:m=>m?.status || 'Local', associationLabel:()=> 'verified',
-    clearError() {}, fail:error=>{throw error;}, clock:seconds=>String(seconds),
-    api:async(url)=>url==='/api/bridge/status'?null:context.bundle,
-    fetch:async()=>({ok:false})});
+    clearError() {}});
   vm.runInContext(read('account-context.js'), context);
   vm.runInContext('let projects='+JSON.stringify([project])+'; let frameAbort=null;'+
-    part('function localProjectUrl(', 'async function editProject(')+
-    part('function renderAutomationCard(', 'window.GGABConfirmation.subscribe(')+
-    'let handoffRequest=0;let handoffView=null;'+
-    part('function flowMessage(', "el('close-handoff').onclick="), context);
-  return {base, elements, project, context, run:code=>vm.runInContext(code, context)};
+    part('function localProjectUrl(', 'async function editProject('), context);
+  return {base, elements, context, run:code=>vm.runInContext(code, context)};
 }
 
-test('library and finalized-project navigation retain each tab login context', () => {
-  for (const digit of ['a','b']) {
+test('project and annotated-match links retain each tab context and encode exact IDs', () => {
+  for (const digit of ['', 'a', 'b']) {
     const t=tracker(digit);
     t.run('showLibrary()');
-    assert.match(t.elements.get('project-list').innerHTML,
-      new RegExp('href="'+t.base+'/tracker/projects/project-one"'));
-    t.run('renderAutomationCard(projects[0].migration,projects[0])');
-    const html=t.elements.get('handoff-automation').innerHTML;
-    assert.ok(html.includes('href="'+t.base+'/tracker/projects/project-one"'));
-    assert.ok(html.includes('href="'+t.base+'/insights/match-breakdown?match=video-local-original"'));
-    assert.equal(html.includes('href="/insights/'), false);
+    const html=t.elements.get('project-list').innerHTML;
+    assert.ok(html.includes('href="'+t.base+'/tracker/projects/project%20%2F%3F"'));
+    assert.ok(html.includes('href="'+t.base+'/insights/match-breakdown?match=match%20%2F%3F"'));
+    if(t.base) assert.equal(html.includes('href="/insights/'), false);
+    assert.equal(t.elements.get('wizard').hidden,true);
+    assert.equal(t.elements.get('project-library').hidden,false);
   }
 });
 
-test('queued-project new/edit navigation keeps context without changing account or charging', () => {
-  const t=tracker('b');
-  t.run('renderAutomationCard({...projects[0].migration,status:"processing"},projects[0])');
-  const html=t.elements.get('handoff-automation').innerHTML;
-  assert.ok(html.includes('href="'+t.base+'/tracker/new"'));
-  assert.ok(html.includes('href="'+t.base+'/tracker/new?project=project-one"'));
-  assert.equal(html.includes('/s/'+'a'.repeat(32)), false);
-});
-
-test('root-context navigation still works and identifiers are URL-encoded', () => {
-  for (const digit of ['', 'a']) {
-    const t=tracker(digit);
-    assert.equal(t.run('localProjectUrl("project /?")'),t.base+'/tracker/projects/project%20%2F%3F');
-    t.run('projects[0].session_id="video /?";renderAutomationCard(projects[0].migration,projects[0])');
-    assert.ok(t.elements.get('handoff-automation').innerHTML.includes(
-      'href="'+t.base+'/insights/match-breakdown?match=video%20%2F%3F"'));
-  }
-});
-
-test('handoff screenshots retain each tab context, escape URLs and avoid double prefixes', async () => {
-  for (const digit of ['', 'a','b']) {
-    const t=tracker(digit);
-    t.context.bundle={project:{...t.project,
-      players:[{slot:'A1',name:'Alice'},{slot:'B1',name:'Bob'}],
-      snapshots:{A1:{url:'/api/tracker/snapshots/snap-a?x=1&y=2',time:79.2,rotation:0},
-        B1:{url:t.base+'/api/tracker/snapshots/snap-b',time:79.2,rotation:0}}},
-      video:{local_path:'D:/original.mp4',duration:316},migration:null,prompt:'Test'};
-    await t.run('openHandoff("project-one")');
-    const html=t.elements.get('handoff-summary').innerHTML;
-    assert.ok(html.includes('src="'+t.base+'/api/tracker/snapshots/snap-a?x=1&amp;y=2"'));
-    assert.ok(html.includes('src="'+t.base+'/api/tracker/snapshots/snap-b"'));
-    assert.equal(t.elements.get('handoff-panel').hidden,false);
-    if(t.base) {
-      assert.equal(html.includes('src="/api/'),false);
-      assert.equal(html.includes(t.base+t.base),false);
-    }
-  }
+test('saved projects without shot annotations offer editing without an analysis link', () => {
+  const t=tracker('b', null);
+  t.run('showLibrary()');
+  const html=t.elements.get('project-list').innerHTML;
+  assert.ok(html.includes('href="'+t.base+'/tracker/projects/project%20%2F%3F"'));
+  assert.equal(html.includes('/insights/match-breakdown'),false);
 });
 
 test('saving a project replaces old name candidates with current-account suggestions', async () => {

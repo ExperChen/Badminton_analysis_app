@@ -28,23 +28,23 @@ function tab(digit, email = 'alice@example.test') {
 }
 
 test('navigation and XHR keep context while blob and external URLs remain unchanged',()=>{
-  const run=tab('a'), {GGABPath}=run.window;
-  assert.equal(GGABPath('/api/my/export.csv?game=2'),run.base+'/api/my/export.csv?game=2');
-  assert.equal(GGABPath(run.base+'/tracker'),run.base+'/tracker');
-  assert.equal(GGABPath('https://app.getgoodatbadminton.com/tracker/test'),'https://app.getgoodatbadminton.com/tracker/test');
-  assert.equal(GGABPath('blob:http://127.0.0.1:8000/test'),'blob:http://127.0.0.1:8000/test');
+  const run=tab('a'), {YuxuPath}=run.window;
+  assert.equal(YuxuPath('/api/my/export.csv?game=2'),run.base+'/api/my/export.csv?game=2');
+  assert.equal(YuxuPath(run.base+'/tracker'),run.base+'/tracker');
+  assert.equal(YuxuPath('https://app.getgoodatbadminton.com/tracker/test'),'https://app.getgoodatbadminton.com/tracker/test');
+  assert.equal(YuxuPath('blob:http://127.0.0.1:8000/test'),'blob:http://127.0.0.1:8000/test');
   run.context.history.replaceState(null,'','/tracker/new');
   assert.equal(run.historyCalls[0][2],run.base+'/tracker/new');
   const xhr=new run.XHR();xhr.open('POST','/api/sessions/import',true);
   assert.equal(xhr.opened[1],run.base+'/api/sessions/import');
-  assert.equal(run.window.GGABRoute(),'/account');
+  assert.equal(run.window.YuxuRoute(),'/account');
 });
 
 test('two tabs keep their API, upload CSRF and revocation polling identities independent',async()=>{
   const alice=tab('a'), bob=tab('b','bob@example.test');
   for(const run of [alice,bob]) {
     vm.runInContext(read('account-session.js'),run.context);
-    await run.window.GGABAuthReady;
+    await run.window.YuxuAuthReady;
     await run.window.fetch('/api/tracker/projects',{method:'POST',body:'{}'});
     const mutation=run.calls.find(call=>String(call.input).endsWith('/api/tracker/projects'));
     assert.equal(mutation.input,run.base+'/api/tracker/projects');
@@ -58,6 +58,6 @@ test('two tabs keep their API, upload CSRF and revocation polling identities ind
     assert.equal(run.calls.some(call=>call.redirect),false);
     assert.equal(run.calls.filter(call=>String(call.input).endsWith('/api/me')).every(call=>call.input===run.base+'/api/me'),true);
   }
-  assert.equal(alice.window.GGABUser.email,'alice@example.test');
-  assert.equal(bob.window.GGABUser.email,'bob@example.test');
+  assert.equal(alice.window.YuxuUser.email,'alice@example.test');
+  assert.equal(bob.window.YuxuUser.email,'bob@example.test');
 });

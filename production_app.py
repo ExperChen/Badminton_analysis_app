@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 import app as backend
 
 ROOT = Path(__file__).resolve().parent
-selected = os.environ.get("GGAB_UI_RELEASE")
+selected = os.environ.get("YUXU_UI_RELEASE")
 if not selected:
     selected = json.loads((ROOT/"deployments/active.json").read_text(encoding="utf-8"))["release"]
 RELEASE = (ROOT/"deployments"/selected).resolve()

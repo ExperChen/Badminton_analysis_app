@@ -13,7 +13,7 @@ try:
 except (OSError, ValueError):
     pass
 try:
-    requested = int(os.environ.get('GGAB_CPU_BUDGET', '14' if os.name == 'nt' else '20'))
+    requested = int(os.environ.get('YUXU_CPU_BUDGET', '14' if os.name == 'nt' else '20'))
 except ValueError:
     requested = 14 if os.name == 'nt' else 20
 CPU_THREADS = max(1, min(requested, available))

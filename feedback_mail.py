@@ -37,7 +37,7 @@ def read_config():
 
 
 def configured():
-    if os.environ.get("GGAB_FEEDBACK_NO_MAIL") == "1":
+    if os.environ.get("YUXU_FEEDBACK_NO_MAIL") == "1":
         return False
     value = read_config()
     return bool(value.get("enabled") and value.get("client_id") and value.get("refresh_token")
@@ -214,7 +214,7 @@ def start():
     global _thread
     if feedback.config().get("mail_transport") == "connector":
         return
-    if os.environ.get("GGAB_FEEDBACK_WORKER_DISABLED") == "1" or (_thread and _thread.is_alive()):
+    if os.environ.get("YUXU_FEEDBACK_WORKER_DISABLED") == "1" or (_thread and _thread.is_alive()):
         return
     _stop.clear(); _wake.clear()
     _thread = threading.Thread(target=loop, name="feedback-mail", daemon=True)

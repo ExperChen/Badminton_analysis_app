@@ -175,7 +175,7 @@ function render() {
 async function load(resetGame=false) {
   if(!$("match").value) return;
   const id=++requestId;activeRequest?.abort();activeRequest=new AbortController();
-  document.dispatchEvent(new CustomEvent("ggab:loading"));
+  document.dispatchEvent(new CustomEvent("yuxu:loading"));
   const signal=activeRequest.signal;
   $("status").textContent="正在更新比赛分析…";$("error").hidden=true;$("content").hidden=true;
   if(resetGame) $("game").value="";
@@ -195,7 +195,7 @@ async function load(resetGame=false) {
     const match=matches.find(m=>m.match_id===matchId);$("match-title").textContent=match?.title||"比赛分析";
     $("comparison").hidden=mode!=="compare";if(mode==="compare")renderComparison(results[2],results[1]);
     render();
-    document.dispatchEvent(new CustomEvent("ggab:match-loaded"));
+    document.dispatchEvent(new CustomEvent("yuxu:match-loaded"));
     if(data.perspective_labels)for(const option of $("perspective").options)option.textContent=data.perspective_labels[option.value]||option.textContent;
     $("status").textContent=`${match?.date||""} · ${data.summary.rallies} 回合 · ${data.summary.shots} 拍${data.summary.rallies?"":" · 当前筛选暂无数据"}`;
     const url=new URL(location.href);url.searchParams.set("match",matchId);url.searchParams.set("perspective",perspective);game?url.searchParams.set("game",game):url.searchParams.delete("game");history.replaceState(null,"",url);
@@ -210,7 +210,7 @@ async function init() {
     $("library-count").textContent=matches.length;$("library-detail").textContent=`${matches.reduce((n,m)=>n+m.shots,0)} 拍 · ${matches.reduce((n,m)=>n+m.rallies,0)} 个回合`;
     if(!matches.length){$("match-title").textContent="还没有比赛";$("match").innerHTML="<option>暂无比赛</option>";$("status").textContent="还没有比赛数据，请先创建项目并完成分析。";return;}
     const options=matches.map(m=>`<option value="${esc(m.match_id)}">${esc(m.title)} · ${esc(m.date)}</option>`).join("");
-    document.dispatchEvent(new CustomEvent("ggab:sessions-loaded"));
+    document.dispatchEvent(new CustomEvent("yuxu:sessions-loaded"));
     $("match").innerHTML=options;$("compare-match").innerHTML=options;$("match").disabled=false;
     const params=new URLSearchParams(location.search);
     const requested=matches.find(m=>m.match_id===params.get("match"))||matches.find(m=>m.local_session_id===params.get("match"));
@@ -249,11 +249,11 @@ document.querySelectorAll('label[for="video-file"]').forEach(label=>{
 $("video-file").addEventListener("change",e=>{
   const file=e.target.files[0];if(!file||!data)return;
   if(videoURL)URL.revokeObjectURL(videoURL);videoURL=URL.createObjectURL(file);videoMatch=$("match").value;
-  const video=$("video");video.src=window.GGABPath(videoURL);video.hidden=false;$("video-empty").hidden=true;$("video-name").textContent=file.name;
+  const video=$("video");video.src=window.YuxuPath(videoURL);video.hidden=false;$("video-empty").hidden=true;$("video-name").textContent=file.name;
   video.playbackRate=Number($("speed").value);video.load();
   const chosen=data.rallies.flatMap(r=>r.shots).find(s=>s.shot_id===selectedShot);
   seek(chosen?.video_timestamp_seconds??data.rallies[rallyIndex]?.start??0);
-  document.dispatchEvent(new CustomEvent("ggab:video-selected", {detail:{file,matchId:$("match").value}}));
+  document.dispatchEvent(new CustomEvent("yuxu:video-selected", {detail:{file,matchId:$("match").value}}));
 });
 $("video").addEventListener("error",()=>{if(videoURL)message("视频无法播放","浏览器无法解码这个视频，请选择浏览器支持的 MP4（H.264）或 WebM 视频。");});
 $("speed").addEventListener("change",()=>$("video").playbackRate=Number($("speed").value));

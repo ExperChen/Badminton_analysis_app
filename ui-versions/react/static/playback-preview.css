@@ -4,7 +4,7 @@
 
 .playback-preview > p {
   padding: 16px 20px 0;
-  color:var(--muted);
+  color: var(--muted);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -15,7 +15,7 @@
 
 .playback-preview > [role="status"] {
   display: inline-block;
-  color:#368568;
+  color: #79cda5;
   font-size: 12px;
 }
 

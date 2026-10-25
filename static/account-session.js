@@ -1,20 +1,20 @@
 "use strict";
 (() => {
   const nativeFetch = window.fetch.bind(window);
-  const path = window.GGABPath;
+  const path = window.YuxuPath;
   const signIn = () => location.replace(path('/login'));
   const ready = nativeFetch(path('/api/me'), {cache:'no-store'}).then(async r => {
     if (!r.ok) {signIn(); throw new Error('请登录本地账号');}
-    const user = await r.json(); window.GGABUser = user; return user;
+    const user = await r.json(); window.YuxuUser = user; return user;
   });
-  window.GGABAuthReady = ready;
+  window.YuxuAuthReady = ready;
   window.fetch = async (input, options = {}) => {
     const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, location.href);
     if (url.origin !== location.origin) return nativeFetch(input, options);
     const user = await ready;
     const method = String(options.method || input.method || 'GET').toUpperCase();
     const headers = new Headers(options.headers || input.headers || {});
-    if (!['GET','HEAD','OPTIONS'].includes(method)) {headers.set('X-CSRF-Token', user.csrf); headers.set('X-GGAB-Local','1');}
+    if (!['GET','HEAD','OPTIONS'].includes(method)) {headers.set('X-CSRF-Token', user.csrf); headers.set('X-Yuxu-Local','1');}
     const target = typeof input === 'string' || input instanceof URL ? path(input) : new Request(path(input.url), input);
     const response = await nativeFetch(target, {...options, headers});
     if (response.status === 401) signIn();
@@ -31,10 +31,6 @@
     if (sidebar) {
       const account = document.createElement('a'); account.className='nav-item';account.href=path('/account');account.textContent='账号 · ' + user.email;sidebar.append(account);
       const other = document.createElement('a'); other.className='nav-item';other.href=path('/login?new=1');other.target='_blank';other.rel='noopener';other.textContent='＋ 登录其他账号';sidebar.append(other);
-      if (!document.querySelector('script[src*="/static/token-ui.js"]')) {
-        const style=document.createElement('link');style.rel='stylesheet';style.href=path('/static/token-ui.css?v=20261006-sidebar');document.head.append(style);
-        const script=document.createElement('script');script.src=path('/static/token-ui.js?v=20261009-zh');document.head.append(script);
-      }
     }
     document.querySelectorAll('.profile').forEach(node => {node.textContent = user.email;});
   };if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',showUser);else showUser();}).catch(() => {});

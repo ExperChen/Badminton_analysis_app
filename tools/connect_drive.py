@@ -92,7 +92,7 @@ def connect(client_file, reconnect=False):
         folder_id = previous["folder_id"]
         api_json(drive_storage.API + "/" + folder_id + "?fields=id", bearer=tokens["access_token"])
     else:
-        folder = api_json(drive_storage.API + "?fields=id", {"name": "GGAB Videos", "mimeType": "application/vnd.google-apps.folder"}, tokens["access_token"])
+        folder = api_json(drive_storage.API + "?fields=id", {"name": "Yuxu Videos", "mimeType": "application/vnd.google-apps.folder"}, tokens["access_token"])
         folder_id = folder["id"]
     destination.parent.mkdir(parents=True, exist_ok=True)
     saved = {"client_id": client["client_id"], "client_secret": client["client_secret"],
@@ -114,7 +114,7 @@ def connect(client_file, reconnect=False):
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
-    parser = argparse.ArgumentParser(description="连接管理员 Google Drive，并新建私有 GGAB Videos 文件夹")
+    parser = argparse.ArgumentParser(description="连接管理员 Google Drive，并新建私有 Yuxu Videos 文件夹")
     parser.add_argument("--client", required=True, help="Google OAuth 桌面客户端 JSON 的路径")
     parser.add_argument("--reconnect", action="store_true", help="重新授权原管理员账号并保留原文件夹")
     arguments = parser.parse_args()

@@ -7,7 +7,7 @@ const fmt = (value, suffix="") => value == null ? "—" : `${value}${suffix}`;
 const time = (seconds) => seconds == null ? "—" : `${Math.floor(seconds/60)}:${String(Math.floor(seconds%60)).padStart(2,"0")}`;
 const labels = Object.fromEntries(["above_tape","above_net_midline","below_net_midline","below_net","into_the_net","out_the_back","out_on_sides","unknown","winner","forced_error","unforced_error","in_play"].map(key=>[key,window.AppText.term(key)]));
 const zh=value=>window.AppText.term(value);
-const colors = ["#7c3aed", "#0d9488", "#d97706", "#a78bfa", "#10b981", "#64748b"];
+const colors = ["#ff2344", "#38bdf8", "#e7a648", "#ac85ed", "#61c9a4", "#85858e"];
 const heightKeys = ["above_tape", "above_net_midline", "below_net_midline", "below_net"];
 const errorKeys = ["into_the_net", "out_the_back", "out_on_sides", "unknown"];
 let matches = [], data = null, rallyIndex = 0, mode = "single", requestId = 0;
@@ -41,7 +41,7 @@ function chart(id, option, onClick) {
   charts.set(id, instance);
   const description = (option.series||[]).map(series=>`${series.name||"数据"}：${(series.data||[]).map((item,i)=>`${option.xAxis?.data?.[i]??item?.name??i+1} ${fmt(typeof item==="object"&&item!==null?item.value:item)}`).join("，")}`).join("；");
   instance.setOption({animation:!matchMedia("(prefers-reduced-motion: reduce)").matches,
-    color:colors, textStyle:{fontFamily:"Segoe UI, Microsoft YaHei, sans-serif",color:"#716a85",fontSize:11},
+    color:colors, textStyle:{fontFamily:"Poppins, Microsoft YaHei, sans-serif",color:"#a3a3ac",fontSize:11},
     aria:{enabled:true,label:{description}}, ...option});
   if (onClick) instance.on("click", onClick);
 }
@@ -49,8 +49,8 @@ function emptyChart(id, text="暂无符合条件的数据") {
   if (charts.has(id)) { charts.get(id).dispose(); charts.delete(id); }
   $(id).replaceChildren(); $(id).classList.add("empty-chart"); $(id).textContent=text;
 }
-const axis = {axisLine:{lineStyle:{color:"#ddd6eb"}},axisTick:{show:false},axisLabel:{color:"#92929b",fontSize:10},splitLine:{lineStyle:{color:"#f0ebf7"}}};
-const tooltip = {trigger:"axis",renderMode:"richText",backgroundColor:"#ffffff",borderColor:"#e4ddf0",textStyle:{color:"#28223b",fontSize:12},confine:true};
+const axis = {axisLine:{lineStyle:{color:"#27272d"}},axisTick:{show:false},axisLabel:{color:"#92929b",fontSize:10},splitLine:{lineStyle:{color:"#1d1d22"}}};
+const tooltip = {trigger:"axis",renderMode:"richText",backgroundColor:"#202024",borderColor:"#414149",textStyle:{color:"#eee",fontSize:12},confine:true};
 
 function drawProgression() {
   if (!data.rallies.length) return emptyChart("progression");
@@ -75,7 +75,7 @@ function drawBars(id, items) {
 }
 function drawOutcomes() {
   if(!data.outcomes.length) return emptyChart("outcomes","所选范围内没有已标注的赢分回合");
-  chart("outcomes",{tooltip:{trigger:"item",renderMode:"richText",formatter:"{b}\n{c} 个回合 · {d}%"},legend:{bottom:10,left:"center",textStyle:{color:"#999",fontSize:10}},title:{text:String(data.summary.wins),subtext:"赢分回合",left:"center",top:"33%",textStyle:{color:"#28223b",fontSize:30,fontWeight:500},subtextStyle:{color:"#777",fontSize:10}},series:[{type:"pie",radius:["47%","66%"],center:["50%","45%"],label:{show:false},itemStyle:{borderColor:"#0c0c0d",borderWidth:4},data:data.outcomes.map(x=>({name:labels[x.name]||x.name,value:x.value}))}]});
+  chart("outcomes",{tooltip:{trigger:"item",renderMode:"richText",formatter:"{b}\n{c} 个回合 · {d}%"},legend:{bottom:10,left:"center",textStyle:{color:"#999",fontSize:10}},title:{text:String(data.summary.wins),subtext:"赢分回合",left:"center",top:"33%",textStyle:{color:"#eee",fontSize:30,fontWeight:500},subtextStyle:{color:"#777",fontSize:10}},series:[{type:"pie",radius:["47%","66%"],center:["50%","45%"],label:{show:false},itemStyle:{borderColor:"#0c0c0d",borderWidth:4},data:data.outcomes.map(x=>({name:labels[x.name]||x.name,value:x.value}))}]});
 }
 function drawLength() {
   $("length-meta").textContent=`平均拍数 ${fmt(data.summary.avg_shots)} · 平均时长 ${fmt(data.summary.avg_duration,"s")}`;
@@ -175,7 +175,7 @@ function render() {
 async function load(resetGame=false) {
   if(!$("match").value) return;
   const id=++requestId;activeRequest?.abort();activeRequest=new AbortController();
-  document.dispatchEvent(new CustomEvent("ggab:loading"));
+  document.dispatchEvent(new CustomEvent("yuxu:loading"));
   const signal=activeRequest.signal;
   $("status").textContent="正在更新比赛分析…";$("error").hidden=true;$("content").hidden=true;
   if(resetGame) $("game").value="";
@@ -195,7 +195,7 @@ async function load(resetGame=false) {
     const match=matches.find(m=>m.match_id===matchId);$("match-title").textContent=match?.title||"比赛分析";
     $("comparison").hidden=mode!=="compare";if(mode==="compare")renderComparison(results[2],results[1]);
     render();
-    document.dispatchEvent(new CustomEvent("ggab:match-loaded"));
+    document.dispatchEvent(new CustomEvent("yuxu:match-loaded"));
     if(data.perspective_labels)for(const option of $("perspective").options)option.textContent=data.perspective_labels[option.value]||option.textContent;
     $("status").textContent=`${match?.date||""} · ${data.summary.rallies} 回合 · ${data.summary.shots} 拍${data.summary.rallies?"":" · 当前筛选暂无数据"}`;
     const url=new URL(location.href);url.searchParams.set("match",matchId);url.searchParams.set("perspective",perspective);game?url.searchParams.set("game",game):url.searchParams.delete("game");history.replaceState(null,"",url);
@@ -210,7 +210,7 @@ async function init() {
     $("library-count").textContent=matches.length;$("library-detail").textContent=`${matches.reduce((n,m)=>n+m.shots,0)} 拍 · ${matches.reduce((n,m)=>n+m.rallies,0)} 个回合`;
     if(!matches.length){$("match-title").textContent="还没有比赛";$("match").innerHTML="<option>暂无比赛</option>";$("status").textContent="还没有比赛数据，请先创建项目并完成分析。";return;}
     const options=matches.map(m=>`<option value="${esc(m.match_id)}">${esc(m.title)} · ${esc(m.date)}</option>`).join("");
-    document.dispatchEvent(new CustomEvent("ggab:sessions-loaded"));
+    document.dispatchEvent(new CustomEvent("yuxu:sessions-loaded"));
     $("match").innerHTML=options;$("compare-match").innerHTML=options;$("match").disabled=false;
     const params=new URLSearchParams(location.search);
     const requested=matches.find(m=>m.match_id===params.get("match"))||matches.find(m=>m.local_session_id===params.get("match"));
@@ -249,11 +249,11 @@ document.querySelectorAll('label[for="video-file"]').forEach(label=>{
 $("video-file").addEventListener("change",e=>{
   const file=e.target.files[0];if(!file||!data)return;
   if(videoURL)URL.revokeObjectURL(videoURL);videoURL=URL.createObjectURL(file);videoMatch=$("match").value;
-  const video=$("video");video.src=window.GGABPath(videoURL);video.hidden=false;$("video-empty").hidden=true;$("video-name").textContent=file.name;
+  const video=$("video");video.src=window.YuxuPath(videoURL);video.hidden=false;$("video-empty").hidden=true;$("video-name").textContent=file.name;
   video.playbackRate=Number($("speed").value);video.load();
   const chosen=data.rallies.flatMap(r=>r.shots).find(s=>s.shot_id===selectedShot);
   seek(chosen?.video_timestamp_seconds??data.rallies[rallyIndex]?.start??0);
-  document.dispatchEvent(new CustomEvent("ggab:video-selected", {detail:{file,matchId:$("match").value}}));
+  document.dispatchEvent(new CustomEvent("yuxu:video-selected", {detail:{file,matchId:$("match").value}}));
 });
 $("video").addEventListener("error",()=>{if(videoURL)message("视频无法播放","浏览器无法解码这个视频，请选择浏览器支持的 MP4（H.264）或 WebM 视频。");});
 $("speed").addEventListener("change",()=>$("video").playbackRate=Number($("speed").value));

@@ -5,7 +5,7 @@ import Modal from '../../components/Modal';
 import {api,count,displayDate,duration,errorText,path,uploadVideo} from '../../lib/api';
 
 const allowed=/\.(mp4|mov|mkv|webm|avi|m4v)$/i;
-const progressKey=item=>`yu:watch:${window.GGABUser?.id}:${item.match_id}:${item.video?.updated_at}`;
+const progressKey=item=>`yu:watch:${window.YuxuUser?.id}:${item.match_id}:${item.video?.updated_at}`;
 function readProgress(item){try{const t=JSON.parse(localStorage.getItem(progressKey(item)))?.time;return Number.isFinite(t)&&t>=5&&t<(item.video?.duration||Infinity)-3?t:0;}catch{return 0;}}
 function VideoModal({item,onClose}) {
   const video=useRef(null),lastSave=useRef(0),resume=useRef(readProgress(item)),[speed,setSpeed]=useState('1'),[error,setError]=useState('');
@@ -27,7 +27,7 @@ export default function Library({CourtArt}) {
   async function refresh(){
     setRefreshing(true);setError('');
     try{
-      const user=await window.GGABAuthReady;
+      const user=await window.YuxuAuthReady;
       const [list,inventory]=await Promise.allSettled([api('/api/matches'),user.role==='admin'?api('/api/admin/uploads'):Promise.resolve(null)]);
       if(list.status==='rejected')throw list.reason;
       const ownerMap=new Map();

@@ -14,7 +14,7 @@ import video_tools as videos
 import video_uploads as uploads
 from test_accounts import environment, post
 
-HEADERS = {"X-GGAB-Local": "1"}
+HEADERS = {"X-Yuxu-Local": "1"}
 
 
 @pytest.fixture
@@ -77,7 +77,7 @@ def test_upload_ownership_and_csrf_are_enforced_before_reading_bytes(environment
     assert complete(bob, identifier).status_code == 404
     assert bob.delete(path, headers=HEADERS).status_code == 404
     assert chunk(alice, identifier, 0, b"abcd", digest="0" * 64).status_code == 422
-    assert alice.put(path, content=b"abcd", headers={"X-GGAB-Local": "1", "X-CSRF-Token": "wrong"}).status_code == 403
+    assert alice.put(path, content=b"abcd", headers={"X-Yuxu-Local": "1", "X-CSRF-Token": "wrong"}).status_code == 403
     assert post(alice, "/api/uploads", {"filename": "x.mp4", "size_bytes": 10, "match_id": "video-B"}).status_code == 404
     assert alice.get(path).json()["received_bytes"] == 0
 
@@ -113,7 +113,7 @@ class MediaResponse(io.BytesIO):
 
 @pytest.fixture
 def fake_drive(monkeypatch, small_chunks):
-    monkeypatch.setenv("GGAB_UPLOAD_STORAGE", "google_drive")
+    monkeypatch.setenv("YUXU_UPLOAD_STORAGE", "google_drive")
     monkeypatch.setattr(drive, "configuration", lambda: {"folder_id": "test-folder-id"})
     records, offsets, sent = {}, {}, []
 
@@ -133,7 +133,7 @@ def fake_drive(monkeypatch, small_chunks):
         if offset == data["size_bytes"]:
             meta = {"id": "drive-" + data["upload_id"], "size": str(offset),
                     "md5Checksum": hashlib.md5(stored["content"]).hexdigest(), "mimeType": "video/mp4",
-                    "appProperties": {"ggab_upload_id": data["upload_id"], "ggab_owner": data["owner_id"]},
+                    "appProperties": {"yuxu_upload_id": data["upload_id"], "yuxu_owner": data["owner_id"]},
                     "capabilities": {"canDownload": True}}
             stored["meta"] = meta
         return offset, meta
@@ -233,8 +233,8 @@ def test_drive_partial_acceptance_resends_only_missing_bytes(environment, fake_d
 
 
 def test_drive_is_required_and_untrusted_hosts_never_receive_credentials(environment, monkeypatch, tmp_path):
-    monkeypatch.setenv("GGAB_UPLOAD_STORAGE", "google_drive")
-    monkeypatch.setenv("GGAB_DRIVE_CREDENTIALS_PATH", str(tmp_path / "missing.json"))
+    monkeypatch.setenv("YUXU_UPLOAD_STORAGE", "google_drive")
+    monkeypatch.setenv("YUXU_DRIVE_CREDENTIALS_PATH", str(tmp_path / "missing.json"))
     alice = environment["clients"][1]
     response = post(alice, "/api/uploads", {"filename": "x.mp4", "size_bytes": 10})
     assert response.status_code == 503

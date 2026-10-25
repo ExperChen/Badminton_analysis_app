@@ -18,7 +18,7 @@ def submission(key="feedback-request-0001"):
 
 
 def send(client, body=None):
-    return client.post("/api/feedback", json=body or submission(), headers={"X-GGAB-Local": "1"})
+    return client.post("/api/feedback", json=body or submission(), headers={"X-Yuxu-Local": "1"})
 
 
 def approval_code(fid):
@@ -28,7 +28,7 @@ def approval_code(fid):
 
 @pytest.fixture
 def feedback_config(tmp_path, monkeypatch):
-    monkeypatch.setenv("GGAB_FEEDBACK_ROOT", str(tmp_path / "feedback"))
+    monkeypatch.setenv("YUXU_FEEDBACK_ROOT", str(tmp_path / "feedback"))
     file = tmp_path / "feedback-config.json"
     file.write_text(json.dumps({"admin_email":"review-admin@example.test","execution_enabled":True,"mail_transport":"graph"}), encoding="utf-8")
     monkeypatch.setattr(feedback, "CONFIG_PATH", file)
@@ -45,9 +45,9 @@ def test_identity_isolation_and_admin_review(environment, feedback_config):
     assert admin.get("/api/feedback?scope=all").json()["items"][0]["owner_email"] == "alice@example.test"
     assert "approval_digest" not in item and "approval_code" not in json.dumps(item)
     route = "/api/feedback/"+item["id"]+"/decision"
-    assert alice.patch(route,json={"decision":"approved"},headers={"X-GGAB-Local":"1"}).status_code == 403
-    assert admin.patch(route,json={"decision":"approved"},headers={"X-GGAB-Local":"1","X-CSRF-Token":"wrong"}).status_code == 403
-    result = admin.patch(route,json={"decision":"approved","note":"仅比较两场图表，不改变数据"},headers={"X-GGAB-Local":"1"})
+    assert alice.patch(route,json={"decision":"approved"},headers={"X-Yuxu-Local":"1"}).status_code == 403
+    assert admin.patch(route,json={"decision":"approved"},headers={"X-Yuxu-Local":"1","X-CSRF-Token":"wrong"}).status_code == 403
+    result = admin.patch(route,json={"decision":"approved","note":"仅比较两场图表，不改变数据"},headers={"X-Yuxu-Local":"1"})
     assert result.status_code == 200
     assert result.json()["status"] == "approved"
     assert result.json()["admin_note"] == "仅比较两场图表，不改变数据"

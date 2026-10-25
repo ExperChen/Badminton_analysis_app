@@ -4,7 +4,7 @@
     python refresh_shots.py
 
 指定文件或只校验：
-    python refresh_shots.py path/to/ggab-shots.csv
+    python refresh_shots.py path/to/yuxu-shots.csv
     python refresh_shots.py --dry-run
 
 程序会先把 CSV 全部读入并校验。校验通过后备份数据库，再在同一个
@@ -23,8 +23,8 @@ from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent
-LATEST_CSV = BASE_DIR / "exports" / "ggab-shots-latest.csv"
-DEFAULT_CSV = LATEST_CSV if LATEST_CSV.is_file() else BASE_DIR / "ggab-shots-2026-09-08.csv"
+LATEST_CSV = BASE_DIR / "exports" / "yuxu-shots-latest.csv"
+DEFAULT_CSV = LATEST_CSV if LATEST_CSV.is_file() else BASE_DIR / "yuxu-shots-2026-09-08.csv"
 DEFAULT_DB = BASE_DIR / "ggab.db"
 
 INT_COLS = {

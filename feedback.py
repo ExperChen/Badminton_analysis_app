@@ -31,7 +31,7 @@ def config():
 
 @contextmanager
 def database():
-    folder = Path(os.environ.get("GGAB_FEEDBACK_ROOT", video_tools.MEDIA_ROOT / "feedback"))
+    folder = Path(os.environ.get("YUXU_FEEDBACK_ROOT", video_tools.MEDIA_ROOT / "feedback"))
     folder.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(folder / "feedback.db", timeout=15) as conn:
         conn.row_factory = sqlite3.Row

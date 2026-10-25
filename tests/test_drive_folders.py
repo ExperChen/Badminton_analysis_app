@@ -72,8 +72,8 @@ def test_foreign_or_moved_folder_rejected_and_new_upload_uses_child(folders):
     assert drive.begin(data).startswith('https://www.googleapis.com/upload/')
     upload = calls[-1][2]
     assert upload['parents'] == [data['drive_folder_id']]
-    assert upload['appProperties']['ggab_owner'] == owner
-    remote[data['drive_folder_id']]['appProperties']['ggab_owner'] = 'other'
+    assert upload['appProperties']['yuxu_owner'] == owner
+    remote[data['drive_folder_id']]['appProperties']['yuxu_owner'] = 'other'
     with pytest.raises(HTTPException) as error:
         drive.account_folder(owner)
     assert error.value.status_code == 409
@@ -82,7 +82,7 @@ def test_foreign_or_moved_folder_rejected_and_new_upload_uses_child(folders):
 def test_move_keeps_file_id_and_checksum_and_is_idempotent(folders):
     owner, root, remote, calls = folders
     meta = {'id': 'existing-video-123', 'parents': [root], 'md5Checksum': 'c' * 32,
-            'appProperties': {'ggab_owner': owner, 'ggab_upload_id': 'd' * 32}}
+            'appProperties': {'yuxu_owner': owner, 'yuxu_upload_id': 'd' * 32}}
     remote[meta['id']] = meta
     result = drive.organize_file(dict(meta), owner)
     assert result['id'] == meta['id'] and result['md5Checksum'] == 'c' * 32
@@ -105,7 +105,7 @@ def test_completed_upload_recovery_finds_file_after_folder_move(monkeypatch):
                                   'size_bytes': 10, 'upload_id': 'b' * 32, 'owner_id': 'a' * 32})
     assert offset == 10
     query = parse_qs(urlsplit(observed[-1]).query)['q'][0]
-    assert 'in parents' not in query and "key='ggab_owner'" in query
+    assert 'in parents' not in query and "key='yuxu_owner'" in query
 
 
 def local_job(folders):
@@ -120,7 +120,7 @@ def local_job(folders):
     data = {**item, 'source_path': str(source), 'source_record': record, 'upload_id': 'b' * 32,
             'filename': source.name, 'drive_file': {'id': 'migrated-file-123'}, 'remote_ready': True}
     meta = {'id': 'migrated-file-123', 'size': str(item['size_bytes']), 'md5Checksum': item['md5'],
-            'appProperties': {'ggab_owner': owner, 'ggab_upload_id': data['upload_id']}}
+            'appProperties': {'yuxu_owner': owner, 'yuxu_upload_id': data['upload_id']}}
     return source, data, meta
 
 
@@ -193,7 +193,7 @@ def test_local_migration_resumes_partial_lost_ack_and_does_not_upload_twice(fold
         return 'https://www.googleapis.com/upload/migration-123'
     def meta():
         return {'id': 'migrated-video-123', 'size': str(len(received)), 'md5Checksum': hashlib.md5(received).hexdigest(),
-                'parents': [folder], 'appProperties': {'ggab_owner': data['owner_id'], 'ggab_upload_id': session_data['upload_id']}}
+                'parents': [folder], 'appProperties': {'yuxu_owner': data['owner_id'], 'yuxu_upload_id': session_data['upload_id']}}
     def progress(job, content=None, start=None):
         nonlocal lost
         if content is not None:
