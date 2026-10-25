@@ -33,7 +33,7 @@
 | 数据存储 | Python `sqlite3`；逐拍库、独立账号/项目/反馈库，以及视频 Session 和上传状态 JSON |
 | 认证与权限 | Argon2 密码哈希、HttpOnly 会话 Cookie、CSRF 检查、归属校验和频率限制 |
 | 前端 | React 19、Vite 8、Tailwind CSS 4、Motion、GSAP、Lucide 图标 |
-| 既有页面控制器 | Jinja2 模板、浏览器 JavaScript、本地 ECharts 与字体；部分工作区在 React 页面宿主内复用这些控制器 |
+| 既有页面控制器 | Jinja2 模板、浏览器 JavaScript、本地 ECharts 与字体；账号管理在 React 宿主内复用控制器；比赛项目和回合剪辑使用独立 React 组件 |
 | 媒体处理 | FFmpeg/ffprobe、CPU 编码、后台任务线程池、共享编码锁 |
 | 浏览器集成 | Chromium Manifest V3 后台工作线程与内容脚本 |
 | 测试 | pytest、HTTPX、Node 内置测试运行器 |

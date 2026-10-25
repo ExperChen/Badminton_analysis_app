@@ -6,28 +6,13 @@
   },
   "tracker.html": {
     "view": "tracker",
-    "scripts": [
-      "/static/video-upload.js?v=20261009-zh",
-      "/static/tracker.js?v=20261009-zh"
-    ],
-    "styles": [
-      "/static/style.css",
-      "/static/tracker.css?v=20261009-zh",
-      "/static/tracker-shared-frame.css?v=20261009-zh",
-      "/static/purple.css"
-    ]
+    "scripts": [],
+    "styles": []
   },
   "video_cutter.html": {
     "view": "cutter",
-    "scripts": [
-      "/static/video-upload.js?v=20261009-zh",
-      "/static/video-cutter.js?v=20261009-zh"
-    ],
-    "styles": [
-      "/static/style.css",
-      "/static/cutter.css?v=20261009-zh",
-      "/static/purple.css"
-    ]
+    "scripts": [],
+    "styles": []
   },
   "accounts.html": {
     "view": "account",

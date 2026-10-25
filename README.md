@@ -29,7 +29,7 @@ Shot analysis requires compatible shot annotations. Uploading a video alone does
 | Persistence | Python `sqlite3`, a shot database, separate account/tracker/feedback databases, and JSON video-session/upload manifests |
 | Authentication | Argon2 password hashing, HttpOnly session cookies, CSRF checks, ownership checks, and rate limits |
 | Frontend | React 19, Vite 8, Tailwind CSS 4, Motion, GSAP, and Lucide icons |
-| Existing page controllers | Jinja2 templates, browser JavaScript, and locally served ECharts/fonts; some workspaces retain these controllers inside the React host |
+| Existing page controllers | Jinja2 templates, browser JavaScript, and locally served ECharts/fonts; the React host retains these controllers for account management; Match Tracker and Video Cutter use dedicated React components |
 | Media | FFmpeg/ffprobe, CPU encoding, background worker pools, and a shared encoding lock |
 | Browser integration | Chromium Manifest V3 service worker/content scripts |
 | Tests | pytest, HTTPX, and Node's built-in test runner |

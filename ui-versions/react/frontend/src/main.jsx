@@ -11,6 +11,9 @@ import Analysis from './features/analysis/Analysis';
 import Library from './features/library/Library';
 import Feedback from './features/feedback/Feedback';
 import Help from './features/help/Help';
+import Tracker from './features/workbench/Tracker';
+import Cutter from './features/workbench/Cutter';
+import './features/workbench/workbench.css';
 import './features/help/help.css';
 
 gsap.registerPlugin(useGSAP);
@@ -88,7 +91,7 @@ function LegacyPage() {
 function App() {
   const [user,setUser]=useState(null);
   useEffect(()=>{if(view!=='login')window.YuxuAuthReady.then(setUser).catch(()=>{});},[]);
-  return <MotionConfig reducedMotion="user">{view==='login'?<Login/>:<><Header user={user}/>{view==='library'?<Library CourtArt={CourtArt}/>:view==='analysis'?<Analysis/>:view==='feedback'?<Feedback/>:view==='help'?<Help/>:<LegacyPage/>}</>}</MotionConfig>;
+  return <MotionConfig reducedMotion="user">{view==='login'?<Login/>:<><Header user={user}/>{view==='library'?<Library CourtArt={CourtArt}/>:view==='analysis'?<Analysis/>:view==='feedback'?<Feedback/>:view==='help'?<Help/>:view==='tracker'?<Tracker/>:view==='cutter'?<Cutter/>:<LegacyPage/>}</>}</MotionConfig>;
 }
 // Legacy controllers bind once to real DOM nodes; StrictMode's remount is intentionally excluded.
 createRoot(host).render(<App/>);
